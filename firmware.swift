@@ -18,8 +18,10 @@ final class FirmwareModel: ObservableObject {
 
     init(_ o: DualSenseOutput) { output = o }
 
-    nonisolated static let tool: String? = ["/opt/homebrew/bin/dsmactools", "/usr/local/bin/dsmactools"]
-        .first { FileManager.default.isExecutableFile(atPath: $0) }
+    /// The copy bundled in the app first (Contents/Resources/dsmactools), then a Homebrew install.
+    nonisolated static let tool: String? = [Bundle.main.path(forResource: "dsmactools", ofType: nil),
+                                            "/opt/homebrew/bin/dsmactools", "/usr/local/bin/dsmactools"]
+        .compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0) }
 
     nonisolated static func run(_ args: [String], onLine: (@Sendable (String) -> Void)? = nil) async -> (Int32, [String]) {
         guard let tool else { return (-1, ["O dsmactools não está instalado (brew install olliejudge/tap/dsmactools)."]) }

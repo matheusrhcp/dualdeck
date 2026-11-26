@@ -6,6 +6,8 @@ A="$HOME/Applications/DualSense Battery.app"
 mkdir -p "$A/Contents/MacOS" "$A/Contents/Resources"
 swiftc -O *.swift -o "$A/Contents/MacOS/DualSenseBattery"
 cp Resources/* "$A/Contents/Resources/"
+install -m 755 Vendor/dsmactools "$A/Contents/Resources/dsmactools"
+cp Vendor/DSMACTOOLS-LICENSE.txt "$A/Contents/Resources/"
 cp Info.plist "$A/Contents/Info.plist"
 codesign -f -s - "$A"
 pkill -x DualSenseBattery || true

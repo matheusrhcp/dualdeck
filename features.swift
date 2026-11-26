@@ -108,12 +108,26 @@ final class PowerManager: ObservableObject {
 enum LoginItem {
     static let label = "local.dualsense.battery"
 
+    static var plist: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/\(label).plist")
+    }
+
     static var enabled: Bool {
+        guard FileManager.default.fileExists(atPath: plist.path) else { return false }
         let out = run(["print-disabled", "gui/\(getuid())"])
         return !out.contains("\"\(label)\" => disabled") && !out.contains("\"\(label)\" => true")
     }
 
-    static func set(_ on: Bool) { _ = run([on ? "enable" : "disable", "gui/\(getuid())/\(label)"]) }
+    static func set(_ on: Bool) {
+        if on && !FileManager.default.fileExists(atPath: plist.path) {   // installed from the DMG: create the agent
+            let agent: [String: Any] = ["Label": label, "RunAtLoad": true,
+                                        "ProgramArguments": ["/usr/bin/open", "-W", Bundle.main.bundlePath]]
+            try? FileManager.default.createDirectory(at: plist.deletingLastPathComponent(), withIntermediateDirectories: true)
+            (agent as NSDictionary).write(to: plist, atomically: true)
+            _ = run(["bootstrap", "gui/\(getuid())", plist.path])
+        }
+        _ = run([on ? "enable" : "disable", "gui/\(getuid())/\(label)"])
+    }
 
     private static func run(_ args: [String]) -> String {
         let p = Process()
