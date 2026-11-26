@@ -41,7 +41,7 @@ final class GameProfiles: ObservableObject {
         let p = NSOpenPanel()
         p.allowedContentTypes = [.applicationBundle]
         p.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("projects/nxnative-work")
-        p.prompt = "Adicionar"
+        p.prompt = L("Adicionar")
         NSApp.activate(ignoringOtherApps: true)
         guard p.runModal() == .OK, let url = p.url, let b = Bundle(url: url), let id = b.bundleIdentifier else { return }
         guard !list.contains(where: { $0.bundleID == id }) else { return }

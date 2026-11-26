@@ -49,7 +49,7 @@ let warnLevels: [Float] = [0.20, 0.10]
         guard let c = GCController.controllers().first(where: isDualSense) else {
             st.connected = false; st.battery = nil
             item.button?.title = ""
-            info.title = "Nenhum DualSense conectado"
+            info.title = L("Nenhum DualSense conectado")
             return
         }
         item.isVisible = true
@@ -68,17 +68,17 @@ let warnLevels: [Float] = [0.20, 0.10]
         st.charging = c.battery?.batteryState == .charging
         guard let b = c.battery else {
             item.button?.title = " --"
-            info.title = "DualSense: bateria indisponível"
+            info.title = L("DualSense: bateria indisponível")
             log("no battery object")
             return
         }
         let pct = Int((b.batteryLevel * 100).rounded())
         let state: String
         switch b.batteryState {
-        case .charging: state = "carregando"
-        case .full: state = "carga completa"
-        case .discharging: state = "em uso"
-        default: state = "estado desconhecido"
+        case .charging: state = L("carregando")
+        case .full: state = L("carga completa")
+        case .discharging: state = L("em uso")
+        default: state = L("estado desconhecido")
         }
         item.button?.title = b.batteryState == .charging ? " \(pct)% ⚡︎" : " \(pct)%"
         info.title = "DualSense: \(pct)%, \(state)"
@@ -95,8 +95,8 @@ let warnLevels: [Float] = [0.20, 0.10]
 
     func notify(_ pct: Int) {
         let c = UNMutableNotificationContent()
-        c.title = "DualSense com bateria baixa"
-        c.body = "Restam \(pct)%. Conecte o carregador."
+        c.title = L("DualSense com bateria baixa")
+        c.body = String(format: L("Restam %d%%. Conecte o carregador."), pct)
         c.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "low-\(pct)", content: c, trigger: nil))
     }

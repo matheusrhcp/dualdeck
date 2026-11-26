@@ -10,10 +10,10 @@ enum TriggerMode: Int, Codable, CaseIterable {
     case off, resistance, section, vibration
     var title: String {
         switch self {
-        case .off: return "Desativado"
-        case .resistance: return "Resistência contínua"
-        case .section: return "Gatilho de arma (seção)"
-        case .vibration: return "Vibração"
+        case .off: return L("Desativado")
+        case .resistance: return L("Resistência contínua")
+        case .section: return L("Gatilho de arma (seção)")
+        case .vibration: return L("Vibração")
         }
     }
 }

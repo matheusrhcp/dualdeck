@@ -3,6 +3,7 @@ import SwiftUI
 // Menu bar popover: controller summary, quick actions, and the way into the full settings window.
 
 struct PopoverView: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var m: SettingsModel
     @ObservedObject var st = StatusModel.shared
     let openSettings: () -> Void
@@ -31,6 +32,7 @@ struct PopoverView: View {
             LinearGradient(colors: [accent.opacity(0.35), Color(white: 0.08).opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing)
         )
         .tint(accent)
+        .id(language)
     }
 
     private var header: some View {
@@ -40,7 +42,7 @@ struct PopoverView: View {
                     Text("DualDeck").font(.system(size: 20, weight: .bold))
                     Circle().fill(st.connected ? .green : .gray).frame(width: 8, height: 8)
                 }
-                Text(st.connected ? st.name : "Nenhum controle conectado")
+                Text(st.connected ? st.name : L("Nenhum controle conectado"))
                     .font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
@@ -72,22 +74,22 @@ struct PopoverView: View {
     }
 
     private var batteryTile: some View {
-        tile("battery.75percent", "Bateria") {
+        tile("battery.75percent", L("Bateria")) {
             if let b = st.battery {
                 Text("\(b)%").font(.system(size: 22, weight: .bold)).foregroundStyle(b <= 20 ? .red : .primary)
-                Text(st.charging ? "Carregando" : "Em uso").font(.caption).foregroundStyle(.secondary)
+                Text(st.charging ? "Carregando" : L("Em uso")).font(.caption).foregroundStyle(.secondary)
             } else {
                 Text("—").font(.system(size: 22, weight: .bold))
-                Text("Desconectado").font(.caption).foregroundStyle(.secondary)
+                Text(L("Desconectado")).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
-    private static let levels: [(String, Double)] = [("Off", 0), ("Leve", 0.3), ("Médio", 0.6), ("Forte", 1)]
+    private static var levels: [(String, Double)] { [(L("Off"), 0), (L("Leve"), 0.3), (L("Médio"), 0.6), (L("Forte"), 1)] }
 
     private func levelMenu(_ t: WritableKeyPath<DSSettings, TriggerSetting>) -> some View {
         let cur = m.s[keyPath: t].mode == .off ? 0 : m.s[keyPath: t].strength
-        let name = Self.levels.min(by: { abs($0.1 - cur) < abs($1.1 - cur) })?.0 ?? "Off"
+        let name = Self.levels.min(by: { abs($0.1 - cur) < abs($1.1 - cur) })?.0 ?? L("Off")
         return Menu(name) {
             ForEach(Self.levels, id: \.0) { l in
                 Button(l.0) {
@@ -100,7 +102,7 @@ struct PopoverView: View {
     }
 
     private var triggerTile: some View {
-        tile("slider.horizontal.3", "Gatilhos") {
+        tile("slider.horizontal.3", L("Gatilhos")) {
             HStack {
                 Image(systemName: "l2.rectangle.roundedtop").foregroundStyle(.secondary)
                 Spacer(minLength: 4)
@@ -115,7 +117,7 @@ struct PopoverView: View {
     }
 
     private var lightTile: some View {
-        tile("light.max", "Barra de luz") {
+        tile("light.max", L("Barra de luz")) {
             HStack(spacing: 8) {
                 ForEach(Array(Self.swatches.enumerated()), id: \.offset) { _, c in
                     let on = m.s.lightEffect == .fixed && abs(m.s.red - c.0) < 0.02 && abs(m.s.green - c.1) < 0.02 && abs(m.s.blue - c.2) < 0.02
@@ -128,36 +130,36 @@ struct PopoverView: View {
                     .frame(width: 24, height: 24)
                     .overlay(Circle().strokeBorder(.white, lineWidth: m.s.lightEffect == .rainbow ? 2.5 : 0))
                     .onTapGesture { m.s.lightEffect = .rainbow }
-                    .help("Arco-íris")
+                    .help(L("Arco-íris"))
                 Image(systemName: "battery.75percent").font(.system(size: 13))
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(LinearGradient(colors: [.green, .yellow, .red], startPoint: .top, endPoint: .bottom)))
                     .overlay(Circle().strokeBorder(.white, lineWidth: m.s.lightEffect == .battery ? 2.5 : 0))
                     .onTapGesture { m.s.lightEffect = .battery }
-                    .help("Cor pela bateria")
+                    .help(L("Cor pela bateria"))
                 Spacer(minLength: 0)
                 Button { m.s.lightEffect = .game } label: { Image(systemName: "gamecontroller") }
-                    .buttonStyle(.borderless).help("Controlada pelo jogo")
+                    .buttonStyle(.borderless).help(L("Controlada pelo jogo"))
                     .foregroundStyle(m.s.lightEffect == .game ? accent : .secondary)
             }
         }
     }
 
     private var playerTile: some View {
-        tile("person.fill", "Luz do jogador") {
+        tile("person.fill", L("Luz do jogador")) {
             Picker("", selection: $m.s.playerLEDs) {
-                Text("Do jogo").tag(-1); Text("Desligada").tag(0)
+                Text(L("Do jogo")).tag(-1); Text(L("Desligada")).tag(0)
                 ForEach(1...4, id: \.self) { Text("\($0)").tag($0) }
-                Text("Todas").tag(5)
+                Text(L("Todas")).tag(5)
             }.labelsHidden()
         }
     }
 
     private var micTile: some View {
-        tile("mic.fill", "Luz do microfone") {
+        tile("mic.fill", L("Luz do microfone")) {
             Picker("", selection: $m.s.micLED) {
-                Text("Padrão").tag(MicLED.game); Text("Desligada").tag(MicLED.off)
-                Text("Ligada").tag(MicLED.on); Text("Piscando").tag(MicLED.pulse)
+                Text(L("Padrão")).tag(MicLED.game); Text(L("Desligada")).tag(MicLED.off)
+                Text(L("Ligada")).tag(MicLED.on); Text(L("Piscando")).tag(MicLED.pulse)
             }.labelsHidden()
         }
     }
@@ -165,17 +167,17 @@ struct PopoverView: View {
     private var footer: some View {
         HStack {
             Menu {
-                Button("Desligar controle") { PowerManager.shared.turnOff() }
-                Button("Sair do app") { quit() }
+                Button(L("Desligar controle")) { PowerManager.shared.turnOff() }
+                Button(L("Sair do app")) { quit() }
             } label: { Image(systemName: "power") }
-            .menuStyle(.borderlessButton).fixedSize().help("Desligar")
+            .menuStyle(.borderlessButton).fixedSize().help(L("Desligar"))
             Spacer()
             Button(action: openSettings) {
-                Label("Abrir configurações", systemImage: "gearshape.fill").padding(.horizontal, 6)
+                Label(L("Abrir configurações"), systemImage: "gearshape.fill").padding(.horizontal, 6)
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             Spacer()
-            Button("Restaurar") { m.s = DSSettings() }.buttonStyle(.borderless).font(.caption)
+            Button(L("Restaurar")) { m.s = DSSettings() }.buttonStyle(.borderless).font(.caption)
         }
         .padding(.top, 4)
     }
@@ -216,14 +218,14 @@ struct UpdateBanner: View {
         if case .available(let v) = u.phase {
             HStack {
                 Image(systemName: "sparkles")
-                Text("DualDeck \(v) disponível").font(.callout.weight(.medium))
+                Text("DualDeck \(v) " + L("disponível")).font(.callout.weight(.medium))
                 Spacer()
-                Button("Atualizar") { Task { await u.install() } }.buttonStyle(.borderedProminent).controlSize(.small)
+                Button(L("Atualizar")) { Task { await u.install() } }.buttonStyle(.borderedProminent).controlSize(.small)
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(0.1)))
         } else if u.phase == .installing {
-            HStack { ProgressView().controlSize(.small); Text("Atualizando…").font(.callout) }
+            HStack { ProgressView().controlSize(.small); Text(L("Atualizando…")).font(.callout) }
         }
     }
 }

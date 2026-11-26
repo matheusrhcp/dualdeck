@@ -54,7 +54,7 @@ final class FirmwareModel: ObservableObject {
     }
 
     func check() async {
-        phase = .busy("Lendo o controle…")
+        phase = .busy(L("Lendo o controle…"))
         current = nil; latest = nil; updateAvailable = false; path = nil
         output.paused = true
         defer { output.paused = false }
@@ -62,12 +62,12 @@ final class FirmwareModel: ObservableObject {
         guard st == 0, let json = lines.first(where: { $0.hasPrefix("{") }),
               let obj = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any],
               let p = obj["path"] as? String else {
-            phase = .failed(lines.last ?? "Controle não encontrado. Conecte-o com um cabo USB de dados.")
+            phase = .failed(lines.last ?? L("Controle não encontrado. Conecte-o com um cabo USB de dados."))
             return
         }
         path = p
         current = obj["version_hex"] as? String
-        phase = .busy("Consultando a Sony…")
+        phase = .busy(L("Consultando a Sony…"))
         let (_, check) = await Self.run(["--check", "--path", p])
         for l in check {
             if let r = l.range(of: #"0x[0-9A-Fa-f]+"#, options: .regularExpression), l.localizedCaseInsensitiveContains("latest") {
@@ -79,7 +79,7 @@ final class FirmwareModel: ObservableObject {
         } else {
             updateAvailable = check.contains { $0.localizedCaseInsensitiveContains("update available") }
         }
-        phase = latest == nil && !updateAvailable ? .failed("Não foi possível consultar a Sony: " + (check.last ?? "")) : .ready
+        phase = latest == nil && !updateAvailable ? .failed(L("Não foi possível consultar a Sony: ") + (check.last ?? "")) : .ready
     }
 
     func install() async {
@@ -87,7 +87,7 @@ final class FirmwareModel: ObservableObject {
         phase = .updating; progress = 0; log = []
         output.paused = true
         let act = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
-                                                        reason: "Atualizando firmware do DualSense")
+                                                        reason: L("Atualizando firmware do DualSense"))
         let (st, lines) = await Self.run(["--update-latest", "--yes", "--path", p]) { line in
             Task { @MainActor in self.handle(line) }
         }
@@ -95,10 +95,10 @@ final class FirmwareModel: ObservableObject {
         try? await Task.sleep(for: .seconds(8))   // controller reboots after flashing
         output.paused = false
         if st == 0 {
-            phase = .done(lines.last ?? "Atualização concluída.")
+            phase = .done(lines.last ?? L("Atualização concluída."))
             updateAvailable = false
         } else {
-            phase = .failed(lines.last ?? "Falha na atualização.")
+            phase = .failed(lines.last ?? L("Falha na atualização."))
         }
     }
 
@@ -121,7 +121,7 @@ struct FirmwareView: View {
             Text("Conecte o DualSense com um cabo USB de dados. O firmware oficial é baixado da Sony pelo dsmactools.")
                 .font(.callout).foregroundStyle(.secondary)
             if FirmwareModel.tool == nil {
-                Text("O dsmactools não está instalado.").foregroundStyle(.red)
+                Text(L("O dsmactools não está instalado.")).foregroundStyle(.red)
             }
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow { Text("Versão atual").foregroundStyle(.secondary); Text(m.current ?? "—").monospaced() }
@@ -141,7 +141,7 @@ struct FirmwareView: View {
             }
             Spacer()
             HStack {
-                Button("Verificar") { Task { await m.check() } }
+                Button(L("Verificar")) { Task { await m.check() } }
                     .disabled(m.phase == .updating || FirmwareModel.tool == nil)
                 Spacer()
                 Button("Instalar firmware mais recente") { confirm = true }
@@ -152,9 +152,9 @@ struct FirmwareView: View {
         .padding(20)
         .frame(width: 440, height: 330)
         .confirmationDialog("Instalar o firmware \(m.latest ?? "")?", isPresented: $confirm) {
-            Button("Instalar") { Task { await m.install() } }
+            Button(L("Instalar")) { Task { await m.install() } }
         } message: {
-            Text("Mantenha o cabo conectado e o Mac ligado até o fim. Interromper a gravação pode deixar o controle inutilizável.")
+            Text(L("Mantenha o cabo conectado e o Mac ligado até o fim. Interromper a gravação pode deixar o controle inutilizável."))
         }
         .task { if m.phase == .idle { await m.check() } }
     }

@@ -24,11 +24,11 @@ struct PadPicker: View {
         if pads.list.count > 1 {
             Picker("", selection: Binding(get: { pads.selected ?? pads.list.first?.id ?? "" }, set: { m.select($0) })) {
                 ForEach(pads.list) { p in
-                    Text("Controle \(p.number)" + (p.battery.map { " · \($0)%" } ?? "") + (p.bluetooth ? "" : " · USB")).tag(p.id)
+                    Text(L("Controle") + " \(p.number)" + (p.battery.map { " · \($0)%" } ?? "") + (p.bluetooth ? "" : " · USB")).tag(p.id)
                 }
             }
             .labelsHidden().pickerStyle(.segmented).fixedSize()
-            .help("Escolha o controle a configurar; ele vibra para você saber qual é.")
+            .help(L("Escolha o controle a configurar; ele vibra para você saber qual é."))
         }
     }
 }
@@ -106,8 +106,8 @@ struct Row<C: View>: View {
     var body: some View {
         HStack {
             Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
-            Text(label).font(.callout)
-            Spacer()
+            Text(label).font(.callout).lineLimit(1).fixedSize()
+            Spacer(minLength: 6)
             control
         }
     }
@@ -223,8 +223,8 @@ struct TriggerCard: View {
                 }.labelsHidden().frame(width: 190)
             }
             if t.mode != .off {
-                ValueSlider(icon: "arrow.down.to.line", label: "Início", value: $t.start, range: 0...0.9)
-                ValueSlider(icon: "bolt.fill", label: "Força", value: $t.strength, range: 0.05...1)
+                ValueSlider(icon: "arrow.down.to.line", label: L("Início"), value: $t.start, range: 0...0.9)
+                ValueSlider(icon: "bolt.fill", label: L("Força"), value: $t.strength, range: 0.05...1)
             }
         }
     }
@@ -237,9 +237,9 @@ struct StatusCard: View {
             HStack(spacing: 8) {
                 Circle().fill(st.connected ? .green : .gray).frame(width: 8, height: 8)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(st.connected ? st.name : "Nenhum DualSense conectado").font(.system(size: 13, weight: .semibold))
+                    Text(st.connected ? st.name : L("Nenhum DualSense conectado")).font(.system(size: 13, weight: .semibold))
                     if let b = st.battery {
-                        Text("Bateria \(b)%" + (st.charging ? " · carregando" : "")).font(.caption).foregroundStyle(.secondary)
+                        Text(L("Bateria") + " \(b)%" + (st.charging ? " · " + L("carregando") : "")).font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -259,36 +259,36 @@ struct FirmwareCard: View {
     @ObservedObject var m: FirmwareModel
     @State private var confirm = false
     var body: some View {
-        Card(kicker: "Firmware", title: "Atualização pelo cabo USB") {
+        Card(kicker: "Firmware", title: L("Atualização pelo cabo USB")) {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
-                GridRow { Text("Atual").foregroundStyle(.secondary); Text(m.current ?? "—").monospaced() }
-                GridRow { Text("Disponível").foregroundStyle(.secondary); Text(m.latest ?? "—").monospaced() }
+                GridRow { Text(L("Atual")).foregroundStyle(.secondary); Text(m.current ?? "—").monospaced() }
+                GridRow { Text(L("Disponível")).foregroundStyle(.secondary); Text(m.latest ?? "—").monospaced() }
             }.font(.callout)
             Group {
                 switch m.phase {
-                case .idle: Text("Conecte o controle com um cabo de dados e verifique.").foregroundStyle(.secondary)
+                case .idle: Text(L("Conecte o controle com um cabo de dados e verifique.")).foregroundStyle(.secondary)
                 case .busy(let s): HStack { ProgressView().controlSize(.small); Text(s) }
-                case .ready: Text(m.updateAvailable ? "Atualização disponível." : "Firmware atualizado.")
+                case .ready: Text(m.updateAvailable ? "Atualização disponível." : L("Firmware atualizado."))
                         .foregroundStyle(m.updateAvailable ? .orange : .green)
                 case .updating:
-                    ProgressView(value: m.progress) { Text("Gravando… não desconecte o cabo.") }
+                    ProgressView(value: m.progress) { Text(L("Gravando… não desconecte o cabo.")) }
                 case .done(let s): Text(s).foregroundStyle(.green)
                 case .failed(let s): Text(s).foregroundStyle(.red).lineLimit(3).textSelection(.enabled)
                 }
             }.font(.caption)
             HStack {
-                Button("Verificar") { Task { await m.check() } }
+                Button(L("Verificar")) { Task { await m.check() } }
                     .disabled(m.phase == .updating || FirmwareModel.tool == nil)
                 Spacer()
-                Button("Instalar") { confirm = true }
+                Button(L("Instalar")) { confirm = true }
                     .buttonStyle(.borderedProminent).tint(accent)
                     .disabled(!(m.phase == .ready && m.updateAvailable))
             }
         }
         .confirmationDialog("Instalar o firmware \(m.latest ?? "")?", isPresented: $confirm) {
-            Button("Instalar") { Task { await m.install() } }
+            Button(L("Instalar")) { Task { await m.install() } }
         } message: {
-            Text("Mantenha o cabo conectado e o Mac ligado até o fim. Interromper a gravação pode deixar o controle inutilizável.")
+            Text(L("Mantenha o cabo conectado e o Mac ligado até o fim. Interromper a gravação pode deixar o controle inutilizável."))
         }
     }
 }
@@ -296,6 +296,7 @@ struct FirmwareCard: View {
 // MARK: - Window content
 
 struct SettingsView: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @State private var testing = false
     private var accent: Color {
         switch m.s.lightEffect {
@@ -330,6 +331,7 @@ struct SettingsView: View {
         .frame(width: 1180, height: 940, alignment: .top)
         .environment(\.theme, accent)
         .tint(accent)
+        .id(language)
         .background(
             LinearGradient(colors: [Color(nsColor: .windowBackgroundColor), Color(nsColor: .underPageBackgroundColor)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -338,33 +340,33 @@ struct SettingsView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 48, height: 48)
+            Image(nsImage: Bundle.main.image(forResource: "AppIconImage") ?? NSImage()).resizable().frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 1) {
                 Text("DualDeck").font(.system(size: 22, weight: .bold))
-                Text("Seu DualSense no Mac: luzes, gatilhos, testes e firmware").font(.callout).foregroundStyle(.secondary)
+                Text(L("Seu DualSense no Mac: luzes, gatilhos, testes e firmware")).font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             PadPicker(m: m)
             Spacer()
-            Button("Restaurar padrão") { m.s = DSSettings() }
+            Button(L("Restaurar padrão")) { m.s = DSSettings() }
         }
     }
 
     private var centre: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("VISÃO GERAL").font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
-                Text("Seu controle agora").font(.system(size: 13, weight: .semibold))
+                Text(L("Visão geral").uppercased()).font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
+                Text(L("Seu controle agora")).font(.system(size: 13, weight: .semibold))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .trailing) {
-                Toggle("Testar controle", isOn: $testing).toggleStyle(.switch).controlSize(.small)
+                Toggle(L("Testar controle"), isOn: $testing).toggleStyle(.switch).controlSize(.small)
             }
             ControllerArt(s: m.s, testing: testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil).frame(maxWidth: .infinity)
             if testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil { DriftView().frame(maxWidth: .infinity).padding(.bottom, 8) }
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
-                Text(testing ? "Aperte os botões, mexa os analógicos e toque no touchpad." : "As mudanças valem na hora, inclusive dentro dos jogos.")
+                Text(testing ? "Aperte os botões, mexa os analógicos e toque no touchpad." : L("As mudanças valem na hora, inclusive dentro dos jogos."))
             }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         }
         .padding(16)
@@ -373,17 +375,17 @@ struct SettingsView: View {
     }
 
     private var lightsCard: some View {
-        Card(kicker: "Luzes", title: "Barra de luz e jogador") {
-            Row(icon: "light.max", label: "Barra de luz") {
+        Card(kicker: L("Luzes"), title: L("Barra de luz e jogador")) {
+            Row(icon: "light.max", label: L("Barra de luz")) {
                 Picker("", selection: $m.s.lightEffect) {
-                    Text("Do jogo").tag(LightEffect.game)
-                    Text("Cor fixa").tag(LightEffect.fixed)
-                    Text("Arco-íris").tag(LightEffect.rainbow)
-                    Text("Bateria").tag(LightEffect.battery)
+                    Text(L("Do jogo")).tag(LightEffect.game)
+                    Text(L("Cor fixa")).tag(LightEffect.fixed)
+                    Text(L("Arco-íris")).tag(LightEffect.rainbow)
+                    Text(L("Bateria")).tag(LightEffect.battery)
                 }.labelsHidden().frame(width: 120)
             }
             if m.s.lightEffect == .fixed {
-                Row(icon: "paintpalette", label: "Cor") { ColorPicker("", selection: color, supportsOpacity: false).labelsHidden() }
+                Row(icon: "paintpalette", label: L("Cor")) { ColorPicker("", selection: color, supportsOpacity: false).labelsHidden() }
                 HStack(spacing: 8) {
                     ForEach(Array([(0, 0.4, 1.0), (1.0, 0.2, 0.25), (0.3, 1.0, 0.35), (1.0, 0.75, 0.1), (0.75, 0.3, 1.0), (1.0, 1.0, 1.0)].enumerated()), id: \.offset) { _, c in
                         Circle().fill(Color(red: c.0, green: c.1, blue: c.2)).frame(width: 22, height: 22)
@@ -393,34 +395,34 @@ struct SettingsView: View {
                 }.padding(.leading, 24)
             }
             Divider()
-            Row(icon: "person.fill", label: "Luz do jogador") {
+            Row(icon: "person.fill", label: L("Luz do jogador")) {
                 Picker("", selection: $m.s.playerLEDs) {
-                    Text("Do jogo").tag(-1); Text("Desligada").tag(0)
+                    Text(L("Do jogo")).tag(-1); Text(L("Desligada")).tag(0)
                     ForEach(1...4, id: \.self) { Text("\($0)").tag($0) }
-                    Text("Todas").tag(5)
+                    Text(L("Todas")).tag(5)
                 }.labelsHidden().frame(width: 120)
             }
-            Row(icon: "sun.max", label: "Brilho") {
+            Row(icon: "sun.max", label: L("Brilho")) {
                 Picker("", selection: $m.s.brightness) {
-                    Text("Alto").tag(Brightness.high); Text("Médio").tag(Brightness.medium); Text("Baixo").tag(Brightness.low)
-                }.labelsHidden().pickerStyle(.segmented).fixedSize()
+                    Text(L("Alto")).tag(Brightness.high); Text(L("Médio")).tag(Brightness.medium); Text(L("Baixo")).tag(Brightness.low)
+                }.labelsHidden().pickerStyle(.segmented).controlSize(.small).fixedSize()
             }
         }
     }
 
     private var micCard: some View {
-        Card(kicker: "Microfone", title: "Luz de status") {
-            Row(icon: "mic.fill", label: "Luz do microfone") {
+        Card(kicker: L("Microfone"), title: L("Luz de status")) {
+            Row(icon: "mic.fill", label: L("Luz do microfone")) {
                 Picker("", selection: $m.s.micLED) {
-                    Text("Padrão").tag(MicLED.game); Text("Desligada").tag(MicLED.off)
-                    Text("Ligada").tag(MicLED.on); Text("Piscando").tag(MicLED.pulse)
+                    Text(L("Padrão")).tag(MicLED.game); Text(L("Desligada")).tag(MicLED.off)
+                    Text(L("Ligada")).tag(MicLED.on); Text(L("Piscando")).tag(MicLED.pulse)
                 }.labelsHidden().frame(width: 120)
             }
         }
     }
 
     private var triggersCard: some View {
-        Card(kicker: "Gatilhos adaptativos e vibração", title: "Sinta a resistência") {
+        Card(kicker: L("Gatilhos adaptativos e vibração"), title: L("Sinta a resistência")) {
             HStack(alignment: .top, spacing: 18) {
                 TriggerCard(title: "L2", t: $m.s.left)
                 Divider()
@@ -428,20 +430,20 @@ struct SettingsView: View {
             }
             Divider()
             HStack(alignment: .bottom, spacing: 18) {
-                ValueSlider(icon: "waveform.path", label: "Vibração forte", value: $m.s.rumbleStrong)
-                ValueSlider(icon: "waveform", label: "Vibração suave", value: $m.s.rumbleSoft)
+                ValueSlider(icon: "waveform.path", label: L("Vibração forte"), value: $m.s.rumbleStrong)
+                ValueSlider(icon: "waveform", label: L("Vibração suave"), value: $m.s.rumbleSoft)
                 Button { m.s.rumbleStrong = 0; m.s.rumbleSoft = 0 } label: { Image(systemName: "stop.fill") }
-                    .help("Parar vibração")
+                    .help(L("Parar vibração"))
             }
         }
     }
 
     private var audioCard: some View {
-        Card(kicker: "Áudio", title: "Alto-falante e fone do controle") {
-            Toggle(isOn: volumeOn(\.speakerVolume)) { Label("Volume do alto-falante", systemImage: "speaker.wave.2") }
+        Card(kicker: L("Áudio"), title: L("Alto-falante e fone do controle")) {
+            Toggle(isOn: volumeOn(\.speakerVolume)) { Label(L("Volume do alto-falante"), systemImage: "speaker.wave.2") }
                 .toggleStyle(.switch).tint(accent)
             if m.s.speakerVolume >= 0 { Slider(value: $m.s.speakerVolume, in: 0...1).tint(accent) }
-            Toggle(isOn: volumeOn(\.headphoneVolume)) { Label("Volume do fone", systemImage: "headphones") }
+            Toggle(isOn: volumeOn(\.headphoneVolume)) { Label(L("Volume do fone"), systemImage: "headphones") }
                 .toggleStyle(.switch).tint(accent)
             if m.s.headphoneVolume >= 0 { Slider(value: $m.s.headphoneVolume, in: 0...1).tint(accent) }
         }
@@ -480,11 +482,11 @@ struct SettingsView: View {
 struct ProfilesCard: View {
     @Environment(\.theme) private var accent
     @ObservedObject var g = GameProfiles.shared
-    private let levels: [(String, Double)] = [("Off", 0), ("Leve", 0.3), ("Médio", 0.6), ("Forte", 1)]
+    private let levels: [(String, Double)] = [(L("Off"), 0), (L("Leve"), 0.3), (L("Médio"), 0.6), (L("Forte"), 1)]
 
     private func menu(_ t: Binding<TriggerSetting>) -> some View {
         let cur = t.wrappedValue.mode == .off ? 0 : t.wrappedValue.strength
-        return Menu(levels.min(by: { abs($0.1 - cur) < abs($1.1 - cur) })?.0 ?? "Off") {
+        return Menu(levels.min(by: { abs($0.1 - cur) < abs($1.1 - cur) })?.0 ?? L("Off")) {
             ForEach(levels, id: \.0) { l in
                 Button(l.0) { t.wrappedValue.mode = l.1 == 0 ? .off : .resistance; if l.1 > 0 { t.wrappedValue.strength = l.1 } }
             }
@@ -492,9 +494,9 @@ struct ProfilesCard: View {
     }
 
     var body: some View {
-        Card(kicker: "Perfis por jogo", title: "Gatilhos automáticos") {
+        Card(kicker: L("Perfis por jogo"), title: L("Gatilhos automáticos")) {
             if g.list.isEmpty {
-                Text("Adicione um jogo: os gatilhos dele valem sempre que ele estiver na frente.")
+                Text(L("Adicione um jogo: os gatilhos dele valem sempre que ele estiver na frente."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach($g.list) { $p in
@@ -513,32 +515,40 @@ struct ProfilesCard: View {
                     }
                 }
             }
-            Button { g.addFromPanel() } label: { Label("Adicionar jogo…", systemImage: "plus") }
+            Button { g.addFromPanel() } label: { Label(L("Adicionar jogo…"), systemImage: "plus") }
         }
     }
 }
 
 struct SystemCard: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     @ObservedObject var power = PowerManager.shared
     @State private var login = LoginItem.enabled
     @State private var note: String?
 
     var body: some View {
-        Card(kicker: "Sistema", title: "Energia e inicialização") {
-            Row(icon: "moon.zzz", label: "Desligar se parado") {
+        Card(kicker: L("Sistema"), title: L("Energia e inicialização")) {
+            Row(icon: "moon.zzz", label: L("Desligar se parado")) {
                 Picker("", selection: $power.idleMinutes) {
-                    Text("Nunca").tag(0); Text("5 min").tag(5); Text("10 min").tag(10); Text("15 min").tag(15); Text("30 min").tag(30)
+                    Text(L("Nunca")).tag(0); Text("5 min").tag(5); Text("10 min").tag(10); Text("15 min").tag(15); Text("30 min").tag(30)
                 }.labelsHidden().frame(width: 100)
             }
             Toggle(isOn: Binding(get: { login }, set: { LoginItem.set($0); login = LoginItem.enabled })) {
-                Label("Abrir ao iniciar o Mac", systemImage: "power.circle")
+                Label(L("Abrir ao iniciar o Mac"), systemImage: "power.circle")
             }.toggleStyle(.switch)
             HStack {
-                Button { note = PowerManager.shared.turnOff() ? nil : "Só desliga por Bluetooth." } label: {
-                    Label("Desligar controle", systemImage: "power")
+                Button { note = PowerManager.shared.turnOff() ? nil : L("Só desliga por Bluetooth.") } label: {
+                    Label(L("Desligar controle"), systemImage: "power")
                 }
                 if let note { Text(note).font(.caption).foregroundStyle(.secondary) }
+            }
+            Row(icon: "globe", label: L("Idioma")) {
+                Picker("", selection: $language) {
+                    Text(L("Automático")).tag(AppLanguage.automatic.rawValue)
+                    Text("Português").tag(AppLanguage.pt.rawValue)
+                    Text("English").tag(AppLanguage.en.rawValue)
+                }.labelsHidden().frame(width: 120)
             }
             Divider()
             UpdateRow()
@@ -554,7 +564,7 @@ struct DriftView: View {
     var body: some View {
         TimelineView(.animation) { _ in
             let s = InputSnapshot.read() ?? InputSnapshot()
-            HStack(spacing: 28) { pad("Esquerdo", s.left); pad("Direito", s.right) }
+            HStack(spacing: 28) { pad(L("Esquerdo"), s.left); pad(L("Direito"), s.right) }
         }
     }
 
@@ -582,20 +592,20 @@ struct UpdateRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Label("Versão \(u.current)", systemImage: "arrow.triangle.2.circlepath").font(.callout)
+                Label(L("Versão") + " \(u.current)", systemImage: "arrow.triangle.2.circlepath").font(.callout)
                 Spacer()
                 switch u.phase {
                 case .available(let v):
-                    Button("Instalar \(v)") { Task { await u.install() } }.buttonStyle(.borderedProminent)
+                    Button(L("Instalar") + " \(v)") { Task { await u.install() } }.buttonStyle(.borderedProminent)
                 case .checking, .installing:
                     ProgressView().controlSize(.small)
                 default:
-                    Button("Verificar atualizações") { Task { await u.check() } }
+                    Button(L("Verificar atualizações")) { Task { await u.check() } }
                 }
             }
             switch u.phase {
-            case .upToDate: Text("Você está na versão mais recente.").font(.caption).foregroundStyle(.green)
-            case .installing: Text("Baixando e instalando… o app reabre sozinho.").font(.caption).foregroundStyle(.secondary)
+            case .upToDate: Text(L("Você está na versão mais recente.")).font(.caption).foregroundStyle(.green)
+            case .installing: Text(L("Baixando e instalando… o app reabre sozinho.")).font(.caption).foregroundStyle(.secondary)
             case .failed(let e): Text(e).font(.caption).foregroundStyle(.red).lineLimit(2)
             default: EmptyView()
             }

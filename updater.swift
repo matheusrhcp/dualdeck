@@ -47,7 +47,7 @@ final class Updater: ObservableObject {
             if Self.newer(version, than: current), dmgURL != nil { phase = .available(version) }
             else if !quiet || phase == .checking { phase = .upToDate }
         } catch {
-            if !quiet { phase = .failed("Não foi possível verificar: \(error.localizedDescription)") }
+            if !quiet { phase = .failed(L("Não foi possível verificar: ") + error.localizedDescription) }
         }
     }
 
@@ -79,7 +79,7 @@ final class Updater: ObservableObject {
             try p.run()
             NSApp.terminate(nil)
         } catch {
-            phase = .failed("Falha ao instalar: \(error.localizedDescription)")
+            phase = .failed(L("Falha ao instalar: ") + error.localizedDescription)
         }
     }
 
