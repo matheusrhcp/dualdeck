@@ -319,6 +319,15 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        // scrolls when the window is smaller than the layout (small screens, resized window)
+        ScrollView([.vertical, .horizontal]) {
+            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(minWidth: 640, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
             HStack(alignment: .top, spacing: 18) {
@@ -460,9 +469,15 @@ struct SettingsView: View {
 
     func show() {
         if window == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(m: model, fw: firmware)))
+            let host = NSHostingController(rootView: SettingsView(m: model, fw: firmware))
+            host.sizingOptions = []   // the window, not the layout, decides the size
+            let w = NSWindow(contentViewController: host)
             w.title = "DualDeck"
-            w.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+            w.contentMinSize = NSSize(width: 640, height: 480)
+            // the full layout when it fits, else the visible screen minus a margin; centred
+            let screen = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+            w.setContentSize(NSSize(width: min(1180, screen.width - 40), height: min(940, screen.height - 40)))
             w.titleVisibility = .hidden
             w.titlebarAppearsTransparent = true
             w.isMovableByWindowBackground = true
