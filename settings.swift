@@ -103,6 +103,7 @@ struct ControllerArt: View {
         case .game: return Color(red: 0.2, green: 0.35, blue: 1)
         case .fixed: return Color(red: s.red, green: s.green, blue: s.blue)
         case .rainbow: return Color(hue: phase, saturation: 1, brightness: 1)
+        case .battery: let c = batteryColor(StatusModel.shared.battery); return Color(red: c.0, green: c.1, blue: c.2)
         }
     }
     private var glow: Double { [1.0, 0.65, 0.35][s.brightness.rawValue] }
@@ -295,13 +296,13 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             HStack(alignment: .top, spacing: 18) {
-                VStack(spacing: 14) { lightsCard; micCard }.frame(width: 300)
+                VStack(spacing: 14) { lightsCard; micCard; ProfilesCard() }.frame(width: 300)
                 VStack(spacing: 14) { centre; triggersCard }
-                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard }.frame(width: 300)
+                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard; SystemCard() }.frame(width: 300)
             }
         }
         .padding(.horizontal, 26).padding(.top, 34).padding(.bottom, 24)
-        .frame(width: 1180, height: 800, alignment: .top)
+        .frame(width: 1180, height: 940, alignment: .top)
         .environment(\.theme, accent)
         .tint(accent)
         .background(
@@ -336,6 +337,7 @@ struct SettingsView: View {
                 Toggle("Testar controle", isOn: $testing).toggleStyle(.switch).controlSize(.small)
             }
             ControllerArt(s: m.s, testing: testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil).frame(maxWidth: .infinity)
+            if testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil { DriftView().frame(maxWidth: .infinity).padding(.bottom, 8) }
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
                 Text(testing ? "Aperte os botões, mexa os analógicos e toque no touchpad." : "As mudanças valem na hora, inclusive dentro dos jogos.")
@@ -353,6 +355,7 @@ struct SettingsView: View {
                     Text("Do jogo").tag(LightEffect.game)
                     Text("Cor fixa").tag(LightEffect.fixed)
                     Text("Arco-íris").tag(LightEffect.rainbow)
+                    Text("Bateria").tag(LightEffect.battery)
                 }.labelsHidden().frame(width: 120)
             }
             if m.s.lightEffect == .fixed {
@@ -445,4 +448,104 @@ struct SettingsView: View {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool { firmware.phase != .updating }   // never close mid-flash
+}
+
+
+// MARK: - Game profiles, system
+
+struct ProfilesCard: View {
+    @Environment(\.theme) private var accent
+    @ObservedObject var g = GameProfiles.shared
+    private let levels: [(String, Double)] = [("Off", 0), ("Leve", 0.3), ("Médio", 0.6), ("Forte", 1)]
+
+    private func menu(_ t: Binding<TriggerSetting>) -> some View {
+        let cur = t.wrappedValue.mode == .off ? 0 : t.wrappedValue.strength
+        return Menu(levels.min(by: { abs($0.1 - cur) < abs($1.1 - cur) })?.0 ?? "Off") {
+            ForEach(levels, id: \.0) { l in
+                Button(l.0) { t.wrappedValue.mode = l.1 == 0 ? .off : .resistance; if l.1 > 0 { t.wrappedValue.strength = l.1 } }
+            }
+        }.menuStyle(.borderlessButton).fixedSize()
+    }
+
+    var body: some View {
+        Card(kicker: "Perfis por jogo", title: "Gatilhos automáticos") {
+            if g.list.isEmpty {
+                Text("Adicione um jogo: os gatilhos dele valem sempre que ele estiver na frente.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach($g.list) { $p in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Circle().fill(g.frontApp == p.bundleID ? Color.green : .clear).frame(width: 6, height: 6)
+                        Text(p.name).font(.callout.weight(.medium)).lineLimit(1)
+                        Spacer()
+                        Button { g.list.removeAll { $0.bundleID == p.bundleID } } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Text("L2").font(.caption).foregroundStyle(.secondary); menu($p.left)
+                        Spacer()
+                        Text("R2").font(.caption).foregroundStyle(.secondary); menu($p.right)
+                    }
+                }
+            }
+            Button { g.addFromPanel() } label: { Label("Adicionar jogo…", systemImage: "plus") }
+        }
+    }
+}
+
+struct SystemCard: View {
+    @Environment(\.theme) private var accent
+    @ObservedObject var power = PowerManager.shared
+    @State private var login = LoginItem.enabled
+    @State private var note: String?
+
+    var body: some View {
+        Card(kicker: "Sistema", title: "Energia e inicialização") {
+            Row(icon: "moon.zzz", label: "Desligar se parado") {
+                Picker("", selection: $power.idleMinutes) {
+                    Text("Nunca").tag(0); Text("5 min").tag(5); Text("10 min").tag(10); Text("15 min").tag(15); Text("30 min").tag(30)
+                }.labelsHidden().frame(width: 100)
+            }
+            Toggle(isOn: Binding(get: { login }, set: { LoginItem.set($0); login = LoginItem.enabled })) {
+                Label("Abrir ao iniciar o Mac", systemImage: "power.circle")
+            }.toggleStyle(.switch)
+            HStack {
+                Button { note = PowerManager.shared.turnOff() ? nil : "Só desliga por Bluetooth." } label: {
+                    Label("Desligar controle", systemImage: "power")
+                }
+                if let note { Text(note).font(.caption).foregroundStyle(.secondary) }
+            }
+        }
+    }
+}
+
+/// Stick drift check: each stick's position at rest against the dead zone.
+struct DriftView: View {
+    @Environment(\.theme) private var accent
+    private let deadZone = 0.08
+
+    var body: some View {
+        TimelineView(.animation) { _ in
+            let s = InputSnapshot.read() ?? InputSnapshot()
+            HStack(spacing: 28) { pad("Esquerdo", s.left); pad("Direito", s.right) }
+        }
+    }
+
+    private func pad(_ name: String, _ v: CGPoint) -> some View {
+        let r = hypot(v.x, v.y)
+        let drift = r > deadZone && r < 0.3
+        return VStack(spacing: 4) {
+            ZStack {
+                Circle().strokeBorder(.primary.opacity(0.2))
+                Circle().fill(.primary.opacity(0.08)).frame(width: 64 * deadZone * 2 + 6, height: 64 * deadZone * 2 + 6)
+                Path { p in p.move(to: CGPoint(x: 32, y: 0)); p.addLine(to: CGPoint(x: 32, y: 64)); p.move(to: CGPoint(x: 0, y: 32)); p.addLine(to: CGPoint(x: 64, y: 32)) }
+                    .stroke(.primary.opacity(0.12))
+                Circle().fill(accent).frame(width: 8, height: 8).offset(x: v.x * 28, y: -v.y * 28)
+            }.frame(width: 64, height: 64)
+            Text(name).font(.caption2.bold())
+            Text(String(format: "x %+.2f  y %+.2f", v.x, v.y)).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
+            Text(drift ? "Possível drift" : "OK").font(.caption2).foregroundStyle(drift ? .orange : .green)
+        }
+    }
 }

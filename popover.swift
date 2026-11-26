@@ -127,6 +127,12 @@ struct PopoverView: View {
                     .overlay(Circle().strokeBorder(.white, lineWidth: m.s.lightEffect == .rainbow ? 2.5 : 0))
                     .onTapGesture { m.s.lightEffect = .rainbow }
                     .help("Arco-íris")
+                Image(systemName: "battery.75percent").font(.system(size: 13))
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(LinearGradient(colors: [.green, .yellow, .red], startPoint: .top, endPoint: .bottom)))
+                    .overlay(Circle().strokeBorder(.white, lineWidth: m.s.lightEffect == .battery ? 2.5 : 0))
+                    .onTapGesture { m.s.lightEffect = .battery }
+                    .help("Cor pela bateria")
                 Spacer(minLength: 0)
                 Button { m.s.lightEffect = .game } label: { Image(systemName: "gamecontroller") }
                     .buttonStyle(.borderless).help("Controlada pelo jogo")
@@ -156,8 +162,11 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack {
-            Button(action: quit) { Image(systemName: "power") }
-                .buttonStyle(.borderless).help("Sair")
+            Menu {
+                Button("Desligar controle") { PowerManager.shared.turnOff() }
+                Button("Sair do app") { quit() }
+            } label: { Image(systemName: "power") }
+            .menuStyle(.borderlessButton).fixedSize().help("Desligar")
             Spacer()
             Button(action: openSettings) {
                 Label("Abrir configurações", systemImage: "gearshape.fill").padding(.horizontal, 6)

@@ -29,6 +29,9 @@ let warnLevels: [Float] = [0.20, 0.10]
         GCController.startWirelessControllerDiscovery(completionHandler: nil)
         Timer.scheduledTimer(timeInterval: 30, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
         refresh()
+        GameProfiles.shared.output = output
+        GameProfiles.shared.apply()
+        _ = PowerManager.shared
     }
 
     func applicationWillTerminate(_ n: Notification) { output.release() }

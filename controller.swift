@@ -38,7 +38,7 @@ struct TriggerSetting: Codable, Equatable {
 }
 
 enum MicLED: Int, Codable, CaseIterable { case game, off, on, pulse }
-enum LightEffect: Int, Codable, CaseIterable { case game, fixed, rainbow }
+enum LightEffect: Int, Codable, CaseIterable { case game, fixed, rainbow, battery }
 enum Brightness: Int, Codable, CaseIterable { case high, medium, low }
 
 struct DSSettings: Codable, Equatable {
@@ -75,6 +75,8 @@ final class DualSenseOutput {
     private var hue: Double = 0
     private var lastSent: DSSettings?
     /// While true nothing is sent (a firmware update owns the controller).
+    /// Triggers of the game in front, if it has a profile (GameProfiles).
+    var profile: GameProfile? { didSet { if profile != oldValue { apply() } } }
     var paused = false { didSet { if !paused { lastSent = nil; apply() } } }
     var settings = DSSettings.load() { didSet { settings.save(); reschedule(); apply() } }
 
@@ -109,11 +111,23 @@ final class DualSenseOutput {
         timer = Timer.scheduledTimer(withTimeInterval: fast ? 0.05 : 1, repeats: true) { [weak self] _ in self?.apply() }
     }
 
-    private func apply() {
+    /// The settings actually sent: the game profile's triggers, and the battery colour resolved.
+    var effective: DSSettings {
+        var s = settings
+        if let p = profile { s.left = p.left; s.right = p.right }
+        if s.lightEffect == .battery {
+            let c = batteryColor(StatusModel.shared.battery)
+            s.lightEffect = .fixed; s.red = c.0; s.green = c.1; s.blue = c.2
+        }
+        return s
+    }
+
+    func apply() {
         if paused { return }
         if settings.lightEffect == .rainbow { hue = (hue + 0.005).truncatingRemainder(dividingBy: 1) }
-        sendAll(settings, releasing: false)
-        lastSent = settings
+        let s = effective
+        sendAll(s, releasing: false)
+        lastSent = s
     }
 
     private func payload(_ s: DSSettings, releasing: Bool) -> [UInt8] {
