@@ -70,8 +70,8 @@ final class PowerManager: ObservableObject {
     @Published var idleMinutes: Int = UserDefaults.standard.integer(forKey: "idleMinutes") {
         didSet { UserDefaults.standard.set(idleMinutes, forKey: "idleMinutes") }
     }
-    private var lastInput = Date()
-    private var lastSnapshot = ""
+    private var lastInput: [String: Date] = [:]
+    private var lastKey: [String: String] = [:]
     private var timer: Timer?
 
     private init() {
@@ -79,21 +79,26 @@ final class PowerManager: ObservableObject {
     }
 
     private func tick() {
-        guard let s = InputSnapshot.read() else { lastInput = Date(); return }
-        let key = "\(s.pressed.sorted())\(Int(s.left.x * 10))\(Int(s.left.y * 10))\(Int(s.right.x * 10))\(Int(s.right.y * 10))\(Int(s.l2 * 10))\(Int(s.r2 * 10))\(s.touches.count)"
-        if key != lastSnapshot { lastSnapshot = key; lastInput = Date() }
-        if idleMinutes > 0, Date().timeIntervalSince(lastInput) > Double(idleMinutes * 60) {
-            lastInput = Date()
-            turnOff()
+        for pad in DualSenseOutput.current?.pads ?? [] {
+            let s = pad.state
+            let key = "\(s.pressed.sorted())\(Int(s.left.x * 10))\(Int(s.left.y * 10))\(Int(s.right.x * 10))\(Int(s.right.y * 10))\(Int(s.l2 * 10))\(Int(s.r2 * 10))\(s.touches.count)"
+            if key != lastKey[pad.serial] || lastInput[pad.serial] == nil { lastKey[pad.serial] = key; lastInput[pad.serial] = Date() }
+            if idleMinutes > 0, pad.bluetooth, let t = lastInput[pad.serial], Date().timeIntervalSince(t) > Double(idleMinutes * 60) {
+                lastInput[pad.serial] = nil
+                turnOff(serial: pad.serial)
+            }
         }
     }
 
     /// Drops the Bluetooth link; a DualSense turns itself off when it loses its host.
     /// Returns false when no DualSense is connected over Bluetooth (a USB cable keeps it on).
-    @discardableResult func turnOff() -> Bool {
+    /// `serial` = the controller's HID serial, which over Bluetooth is its address; nil = the selected controller.
+    @discardableResult func turnOff(serial: String? = nil) -> Bool {
+        let want = (serial ?? DualSenseOutput.current?.selectedPad?.serial)?.lowercased().filter(\.isHexDigit)
         let devices = (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
         var done = false
-        for d in devices where d.isConnected() && (d.name ?? "").localizedCaseInsensitiveContains("dualsense") {
+        for d in devices where d.isConnected() && (d.name ?? "").localizedCaseInsensitiveContains("dualsense")
+            && (want == nil || (d.addressString ?? "").lowercased().filter(\.isHexDigit) == want) {
             d.closeConnection()
             done = true
         }

@@ -15,6 +15,7 @@ struct InputSnapshot {
     var touches: [CGPoint] = []                        // touchpad, -1...1
 
     static func read() -> InputSnapshot? {
+        if let p = DualSenseOutput.current?.selectedPad, Date().timeIntervalSince(p.lastReport) < 1 { return p.state }
         guard let c = GCController.controllers().first(where: isDualSense), let g = c.extendedGamepad else { return nil }
         var s = InputSnapshot()
         let buttons: [(String, GCControllerButtonInput?)] = [

@@ -67,33 +67,145 @@ struct DSSettings: Codable, Equatable {
     func save() { if let d = try? JSONEncoder().encode(self) { UserDefaults.standard.set(d, forKey: "dsSettings") } }
 }
 
+/// One connected DualSense: its HID device, identity, and what its input reports say.
+final class Pad {
+    let dev: IOHIDDevice
+    let serial: String
+    let bluetooth: Bool
+    var state = InputSnapshot()
+    var battery: Int?
+    var charging = false
+    var lastReport = Date.distantPast
+    var lastSent: DSSettings?
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 128)
+    init(dev: IOHIDDevice, serial: String, bluetooth: Bool) { self.dev = dev; self.serial = serial; self.bluetooth = bluetooth }
+    deinit { buffer.deallocate() }
+}
+
+/// The list the selector shows.
+final class PadsModel: ObservableObject {
+    static let shared = PadsModel()
+    struct Info: Identifiable, Equatable { let id: String; let number: Int; let bluetooth: Bool; let battery: Int? }
+    @Published var list: [Info] = []
+    @Published var selected: String?
+}
+
 final class DualSenseOutput {
+    static weak var current: DualSenseOutput?
     private let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-    private var devices = Set<IOHIDDevice>()
+    private(set) var pads: [Pad] = []          // in connection order
     private var timer: Timer?
     private var seq: UInt8 = 0
     private var hue: Double = 0
-    private var lastSent: DSSettings?
-    /// While true nothing is sent (a firmware update owns the controller).
+    /// Settings of each controller, by serial; `template` is what a controller seen for the first time starts with.
+    private var bySerial: [String: DSSettings] = {
+        guard let d = UserDefaults.standard.data(forKey: "dsSettingsBySerial"),
+              let m = try? JSONDecoder().decode([String: DSSettings].self, from: d) else { return [:] }
+        return m
+    }()
+    private var template = DSSettings.load()
     /// Triggers of the game in front, if it has a profile (GameProfiles).
     var profile: GameProfile? { didSet { if profile != oldValue { apply() } } }
-    var paused = false { didSet { if !paused { lastSent = nil; apply() } } }
-    var settings = DSSettings.load() { didSet { settings.save(); reschedule(); apply() } }
+    /// While true nothing is sent (a firmware update owns the controller).
+    var paused = false { didSet { if !paused { pads.forEach { $0.lastSent = nil }; apply() } } }
+
+    var selectedSerial: String? { didSet { publish() } }
+    var selectedPad: Pad? { pads.first { $0.serial == selectedSerial } ?? pads.first }
+
+    /// The selected controller's settings (the template when none is connected).
+    var settings: DSSettings {
+        get { selectedPad.map { bySerial[$0.serial] ?? template } ?? template }
+        set {
+            if let p = selectedPad { bySerial[p.serial] = newValue } else { template = newValue }
+            template = newValue; template.save()
+            if let d = try? JSONEncoder().encode(bySerial) { UserDefaults.standard.set(d, forKey: "dsSettingsBySerial") }
+            reschedule(); apply()
+        }
+    }
 
     init() {
         let match: [[String: Any]] = [0x0CE6, 0x0DF2].map { [kIOHIDVendorIDKey: 0x054C, kIOHIDProductIDKey: $0] }
         IOHIDManagerSetDeviceMatchingMultiple(manager, match as CFArray)
         let ctx = Unmanaged.passUnretained(self).toOpaque()
         IOHIDManagerRegisterDeviceMatchingCallback(manager, { ctx, _, _, dev in
-            let me = Unmanaged<DualSenseOutput>.fromOpaque(ctx!).takeUnretainedValue()
-            me.devices.insert(dev); me.lastSent = nil; me.apply()
+            Unmanaged<DualSenseOutput>.fromOpaque(ctx!).takeUnretainedValue().added(dev)
         }, ctx)
         IOHIDManagerRegisterDeviceRemovalCallback(manager, { ctx, _, _, dev in
-            Unmanaged<DualSenseOutput>.fromOpaque(ctx!).takeUnretainedValue().devices.remove(dev)
+            let me = Unmanaged<DualSenseOutput>.fromOpaque(ctx!).takeUnretainedValue()
+            me.pads.removeAll { CFEqual($0.dev, dev) }
+            me.publish()
         }, ctx)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        DualSenseOutput.current = self
         reschedule()
+    }
+
+    private func added(_ dev: IOHIDDevice) {
+        guard !pads.contains(where: { CFEqual($0.dev, dev) }) else { return }
+        let transport = IOHIDDeviceGetProperty(dev, kIOHIDTransportKey as CFString) as? String ?? ""
+        let serial = (IOHIDDeviceGetProperty(dev, kIOHIDSerialNumberKey as CFString) as? String)
+            ?? "\((IOHIDDeviceGetProperty(dev, kIOHIDLocationIDKey as CFString) as? Int) ?? 0)"
+        let pad = Pad(dev: dev, serial: serial, bluetooth: transport.localizedCaseInsensitiveContains("bluetooth"))
+        pads.append(pad)
+        let ctx = Unmanaged.passUnretained(self).toOpaque()
+        IOHIDDeviceRegisterInputReportCallback(dev, pad.buffer, 128, { ctx, _, sender, _, id, report, len in
+            guard let ctx, let sender else { return }
+            let me = Unmanaged<DualSenseOutput>.fromOpaque(ctx).takeUnretainedValue()
+            let dev = Unmanaged<IOHIDDevice>.fromOpaque(sender).takeUnretainedValue()
+            guard let pad = me.pads.first(where: { CFEqual($0.dev, dev) }) else { return }
+            me.parse(pad, id: id, Array(UnsafeBufferPointer(start: report, count: len)))
+        }, ctx)
+        apply(); publish()
+    }
+
+    /// Input report 0x01 (USB) or 0x31 (Bluetooth): sticks, triggers, buttons, touchpad, battery.
+    private func parse(_ pad: Pad, id: UInt32, _ r: [UInt8]) {
+        let o: Int
+        if id == 0x01 && r.count >= 54 && r.first == 0x01 { o = 1 }
+        else if id == 0x01 && r.count >= 53 { o = 0 }
+        else if id == 0x31 && r.count >= 55 { o = r.first == 0x31 ? 2 : 1 }
+        else { return }
+        var s = InputSnapshot()
+        let axis: (Int) -> Double = { (Double(r[o + $0]) - 127.5) / 127.5 }
+        s.left = CGPoint(x: axis(0), y: -axis(1)); s.right = CGPoint(x: axis(2), y: -axis(3))
+        s.l2 = Double(r[o + 4]) / 255; s.r2 = Double(r[o + 5]) / 255
+        let b0 = r[o + 7], b1 = r[o + 8], b2 = r[o + 9]
+        let hat = Int(b0 & 0x0F)
+        if [7, 0, 1].contains(hat) { s.pressed.insert("up") }
+        if [1, 2, 3].contains(hat) { s.pressed.insert("right") }
+        if [3, 4, 5].contains(hat) { s.pressed.insert("down") }
+        if [5, 6, 7].contains(hat) { s.pressed.insert("left") }
+        for (bit, n) in [(0x10, "square"), (0x20, "cross"), (0x40, "circle"), (0x80, "triangle")] where b0 & UInt8(bit) != 0 { s.pressed.insert(n) }
+        for (bit, n) in [(0x01, "l1"), (0x02, "r1"), (0x10, "create"), (0x20, "options"), (0x40, "l3"), (0x80, "r3")] where b1 & UInt8(bit) != 0 { s.pressed.insert(n) }
+        if b2 & 0x01 != 0 { s.pressed.insert("ps") }
+        if b2 & 0x02 != 0 { s.pressed.insert("touchpad") }
+        for t in 0..<2 {
+            let i = o + 32 + t * 4
+            guard r[i] & 0x80 == 0 else { continue }
+            let x = Int(r[i + 1]) | Int(r[i + 2] & 0x0F) << 8, y = Int(r[i + 2] >> 4) | Int(r[i + 3]) << 4
+            s.touches.append(CGPoint(x: Double(x) / 960 - 1, y: 1 - Double(y) / 540))
+        }
+        pad.state = s
+        pad.lastReport = Date()
+        let st = r[o + 52]
+        let level = min(100, Int(st & 0x0F) * 10 + 5), charging = (st >> 4) == 1
+        if level != pad.battery || charging != pad.charging {
+            pad.battery = level; pad.charging = charging
+            publish()
+        }
+    }
+
+    /// Selector list, and the selected controller's battery in the status model.
+    func publish() {
+        let m = PadsModel.shared
+        let list = pads.enumerated().map { PadsModel.Info(id: $1.serial, number: $0 + 1, bluetooth: $1.bluetooth, battery: $1.battery) }
+        if m.list != list { m.list = list }
+        let sel = selectedPad?.serial
+        if m.selected != sel { m.selected = sel }
+        if let p = selectedPad, let b = p.battery {
+            StatusModel.shared.battery = b; StatusModel.shared.charging = p.charging
+        }
     }
 
     /// Releases everything the app controls back to the game / defaults.
@@ -102,37 +214,52 @@ final class DualSenseOutput {
         var r = DSSettings()
         r.left.mode = .off; r.right.mode = .off
         r.micLED = .off; r.rumbleSoft = 0; r.rumbleStrong = 0
-        sendAll(r, releasing: true)
+        for pad in pads { send(pad, payload(r, last: pad.lastSent, releasing: true)) }
+    }
+
+    /// A short rumble on one controller, to tell which one is selected.
+    func identify(_ serial: String) {
+        guard let pad = pads.first(where: { $0.serial == serial }) else { return }
+        var p = [UInt8](repeating: 0, count: 47)
+        p[0] = 0x03; p[2] = 200; p[3] = 200
+        send(pad, p)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            var q = [UInt8](repeating: 0, count: 47); q[0] = 0x03
+            self?.send(pad, q)
+        }
     }
 
     private func reschedule() {
         timer?.invalidate()
-        let fast = settings.lightEffect == .rainbow
+        let fast = pads.contains { (bySerial[$0.serial] ?? template).lightEffect == .rainbow } || template.lightEffect == .rainbow
         timer = Timer.scheduledTimer(withTimeInterval: fast ? 0.05 : 1, repeats: true) { [weak self] _ in self?.apply() }
     }
 
-    /// The settings actually sent: the game profile's triggers, and the battery colour resolved.
-    var effective: DSSettings {
-        var s = settings
+    /// What one controller is actually sent: its settings, the game profile's triggers, the battery colour resolved.
+    func effective(_ pad: Pad?) -> DSSettings {
+        var s = pad.map { bySerial[$0.serial] ?? template } ?? template
         if let p = profile { s.left = p.left; s.right = p.right }
         if s.lightEffect == .battery {
-            let c = batteryColor(StatusModel.shared.battery)
+            let c = batteryColor(pad?.battery ?? StatusModel.shared.battery)
             s.lightEffect = .fixed; s.red = c.0; s.green = c.1; s.blue = c.2
         }
         return s
     }
+    var effective: DSSettings { effective(selectedPad) }
 
     func apply() {
         if paused { return }
-        if settings.lightEffect == .rainbow { hue = (hue + 0.005).truncatingRemainder(dividingBy: 1) }
-        let s = effective
-        sendAll(s, releasing: false)
-        lastSent = s
+        hue = (hue + 0.005).truncatingRemainder(dividingBy: 1)
+        for pad in pads {
+            let s = effective(pad)
+            send(pad, payload(s, last: pad.lastSent, releasing: false))
+            pad.lastSent = s
+        }
     }
 
-    private func payload(_ s: DSSettings, releasing: Bool) -> [UInt8] {
+    private func payload(_ s: DSSettings, last: DSSettings?, releasing: Bool) -> [UInt8] {
         var p = [UInt8](repeating: 0, count: 47)
-        let rumbleChanged = lastSent.map { $0.rumbleSoft != s.rumbleSoft || $0.rumbleStrong != s.rumbleStrong } ?? true
+        let rumbleChanged = last.map { $0.rumbleSoft != s.rumbleSoft || $0.rumbleStrong != s.rumbleStrong } ?? true
         if s.rumbleSoft > 0 || s.rumbleStrong > 0 || rumbleChanged || releasing {
             p[0] |= 0x03
             p[2] = UInt8(s.rumbleSoft * 255); p[3] = UInt8(s.rumbleStrong * 255)
@@ -166,12 +293,8 @@ final class DualSenseOutput {
         return p
     }
 
-    private func sendAll(_ s: DSSettings, releasing: Bool) {
-        let p = payload(s, releasing: releasing)
-        for d in devices {
-            let transport = IOHIDDeviceGetProperty(d, kIOHIDTransportKey as CFString) as? String ?? ""
-            if transport.localizedCaseInsensitiveContains("bluetooth") { sendBT(d, p) } else { sendUSB(d, p) }
-        }
+    private func send(_ pad: Pad, _ p: [UInt8]) {
+        if pad.bluetooth { sendBT(pad.dev, p) } else { sendUSB(pad.dev, p) }
     }
 
     private func sendUSB(_ d: IOHIDDevice, _ p: [UInt8]) {

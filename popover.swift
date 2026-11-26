@@ -18,6 +18,7 @@ struct PopoverView: View {
     var body: some View {
         VStack(spacing: 12) {
             header
+            PadPicker(m: m)
             HStack(spacing: 12) { batteryTile; triggerTile }
             lightTile
             HStack(spacing: 12) { playerTile; micTile }

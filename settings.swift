@@ -4,8 +4,33 @@ import SwiftUI
 
 final class SettingsModel: ObservableObject {
     let output: DualSenseOutput
-    @Published var s: DSSettings { didSet { output.settings = s } }
+    private var loading = false
+    @Published var s: DSSettings { didSet { if !loading { output.settings = s } } }
     init(_ o: DualSenseOutput) { output = o; s = o.settings }
+
+    /// Selects a controller and shows its settings.
+    func select(_ serial: String) {
+        output.selectedSerial = serial
+        loading = true; s = output.settings; loading = false
+        output.identify(serial)
+    }
+}
+
+/// "Controle 1 · 65%" picker, shown when more than one DualSense is connected.
+struct PadPicker: View {
+    @ObservedObject var pads = PadsModel.shared
+    let m: SettingsModel
+    var body: some View {
+        if pads.list.count > 1 {
+            Picker("", selection: Binding(get: { pads.selected ?? pads.list.first?.id ?? "" }, set: { m.select($0) })) {
+                ForEach(pads.list) { p in
+                    Text("Controle \(p.number)" + (p.battery.map { " · \($0)%" } ?? "") + (p.bluetooth ? "" : " · USB")).tag(p.id)
+                }
+            }
+            .labelsHidden().pickerStyle(.segmented).fixedSize()
+            .help("Escolha o controle a configurar; ele vibra para você saber qual é.")
+        }
+    }
 }
 
 /// Connection and battery, fed by App.refresh().
@@ -318,6 +343,8 @@ struct SettingsView: View {
                 Text("DualDeck").font(.system(size: 22, weight: .bold))
                 Text("Seu DualSense no Mac: luzes, gatilhos, testes e firmware").font(.callout).foregroundStyle(.secondary)
             }
+            Spacer()
+            PadPicker(m: m)
             Spacer()
             Button("Restaurar padrão") { m.s = DSSettings() }
         }

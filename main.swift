@@ -54,6 +54,15 @@ let warnLevels: [Float] = [0.20, 0.10]
         item.isVisible = true
         st.connected = true
         st.name = c.vendorName ?? "DualSense"
+        if let pad = output.selectedPad, let b = pad.battery {   // the selected controller's own report
+            st.battery = b; st.charging = pad.charging
+            item.button?.title = pad.charging ? " \(b)% ⚡︎" : " \(b)%"
+            info.title = "DualSense: \(b)%"
+            if !pad.charging {
+                for w in warnLevels where Float(b) / 100 <= w && !warned.contains(w) { warned.insert(w); notify(b) }
+            } else { warned.removeAll() }
+            return
+        }
         st.battery = c.battery.map { Int(($0.batteryLevel * 100).rounded()) }
         st.charging = c.battery?.batteryState == .charging
         guard let b = c.battery else {
