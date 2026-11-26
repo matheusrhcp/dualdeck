@@ -540,6 +540,8 @@ struct SystemCard: View {
                 }
                 if let note { Text(note).font(.caption).foregroundStyle(.secondary) }
             }
+            Divider()
+            UpdateRow()
         }
     }
 }
@@ -570,6 +572,33 @@ struct DriftView: View {
             Text(name).font(.caption2.bold())
             Text(String(format: "x %+.2f  y %+.2f", v.x, v.y)).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
             Text(drift ? "Possível drift" : "OK").font(.caption2).foregroundStyle(drift ? .orange : .green)
+        }
+    }
+}
+
+
+struct UpdateRow: View {
+    @ObservedObject var u = Updater.shared
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label("Versão \(u.current)", systemImage: "arrow.triangle.2.circlepath").font(.callout)
+                Spacer()
+                switch u.phase {
+                case .available(let v):
+                    Button("Instalar \(v)") { Task { await u.install() } }.buttonStyle(.borderedProminent)
+                case .checking, .installing:
+                    ProgressView().controlSize(.small)
+                default:
+                    Button("Verificar atualizações") { Task { await u.check() } }
+                }
+            }
+            switch u.phase {
+            case .upToDate: Text("Você está na versão mais recente.").font(.caption).foregroundStyle(.green)
+            case .installing: Text("Baixando e instalando… o app reabre sozinho.").font(.caption).foregroundStyle(.secondary)
+            case .failed(let e): Text(e).font(.caption).foregroundStyle(.red).lineLimit(2)
+            default: EmptyView()
+            }
         }
     }
 }

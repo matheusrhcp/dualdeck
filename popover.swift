@@ -22,6 +22,7 @@ struct PopoverView: View {
             HStack(spacing: 12) { batteryTile; triggerTile }
             lightTile
             HStack(spacing: 12) { playerTile; micTile }
+            UpdateBanner()
             footer
         }
         .padding(16)
@@ -204,5 +205,25 @@ struct PopoverView: View {
         }
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+}
+
+
+/// Shown in the popover only when a new version is out.
+struct UpdateBanner: View {
+    @ObservedObject var u = Updater.shared
+    var body: some View {
+        if case .available(let v) = u.phase {
+            HStack {
+                Image(systemName: "sparkles")
+                Text("DualDeck \(v) disponível").font(.callout.weight(.medium))
+                Spacer()
+                Button("Atualizar") { Task { await u.install() } }.buttonStyle(.borderedProminent).controlSize(.small)
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(0.1)))
+        } else if u.phase == .installing {
+            HStack { ProgressView().controlSize(.small); Text("Atualizando…").font(.callout) }
+        }
     }
 }

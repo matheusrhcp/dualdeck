@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")"
 A="$HOME/Applications/DualDeck.app"
 mkdir -p "$A/Contents/MacOS" "$A/Contents/Resources"
-swiftc -O *.swift -o "$A/Contents/MacOS/DualDeck"
+swiftc -O -target arm64-apple-macos15.0 *.swift -o "$A/Contents/MacOS/DualDeck"
 cp Resources/* "$A/Contents/Resources/"
 install -m 755 Vendor/dsmactools "$A/Contents/Resources/dsmactools"
 cp Vendor/DSMACTOOLS-LICENSE.txt "$A/Contents/Resources/"

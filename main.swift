@@ -32,6 +32,7 @@ let warnLevels: [Float] = [0.20, 0.10]
         GameProfiles.shared.output = output
         GameProfiles.shared.apply()
         _ = PowerManager.shared
+        _ = Updater.shared
     }
 
     func applicationWillTerminate(_ n: Notification) { output.release() }
