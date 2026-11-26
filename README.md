@@ -4,7 +4,13 @@
 
 Your DualSense on the Mac: lights, adaptive triggers, tests and firmware, right from the menu bar.
 
-![Icon](Resources/AppIconImage.png)
+<p align="center"><img src="Resources/AppIconImage.png" width="160" alt="DualDeck icon"></p>
+
+<p align="center">
+  <img src="docs/popover.png" width="300" alt="Menu bar panel">
+  &nbsp;&nbsp;
+  <img src="docs/app.png" width="560" alt="Settings window">
+</p>
 
 ## Features
 
@@ -58,6 +64,12 @@ not affiliated with Sony.
 ## Português
 
 Seu DualSense no Mac: luzes, gatilhos adaptativos, testes e firmware, direto da barra de menus.
+
+<p align="center">
+  <img src="docs/popover.png" width="300" alt="Painel da barra de menus">
+  &nbsp;&nbsp;
+  <img src="docs/app.png" width="560" alt="Janela de configurações">
+</p>
 
 ### O que faz
 

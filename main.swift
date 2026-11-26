@@ -33,6 +33,10 @@ let warnLevels: [Float] = [0.20, 0.10]
         GameProfiles.shared.apply()
         _ = PowerManager.shared
         _ = Updater.shared
+        // for screenshots: open --args --open-settings / --open-popover
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("--open-settings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.settingsWindow.show() } }
+        if args.contains("--open-popover") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.togglePopover() } }
     }
 
     func applicationWillTerminate(_ n: Notification) { output.release() }
