@@ -1,0 +1,448 @@
+import SwiftUI
+
+// Main window: a dashboard of cards around a live drawing of the controller.
+
+final class SettingsModel: ObservableObject {
+    let output: DualSenseOutput
+    @Published var s: DSSettings { didSet { output.settings = s } }
+    init(_ o: DualSenseOutput) { output = o; s = o.settings }
+}
+
+/// Connection and battery, fed by App.refresh().
+final class StatusModel: ObservableObject {
+    static let shared = StatusModel()
+    @Published var connected = false
+    @Published var name = "DualSense"
+    @Published var battery: Int?
+    @Published var charging = false
+}
+
+// MARK: - Building blocks
+
+private let defaultAccent = Color(red: 0.16, green: 0.42, blue: 1.0)
+
+private struct ThemeKey: EnvironmentKey { static let defaultValue = defaultAccent }
+extension EnvironmentValues {
+    var theme: Color { get { self[ThemeKey.self] } set { self[ThemeKey.self] = newValue } }
+}
+
+/// Controller image (1200x809) and masks of its parts, exported from Piero Unisono's DualSense mockup PSD.
+enum PhotoMasks {
+    static let photo: NSImage? = Bundle.main.image(forResource: "controller")
+    static let lightbar: NSImage? = Bundle.main.image(forResource: "mask_led")
+    /// The bumpers' own light and shade (grey, alpha = bumper), to be multiplied by a colour.
+    static let leftTrigger: NSImage? = Bundle.main.image(forResource: "shade_l2")
+    static let rightTrigger: NSImage? = Bundle.main.image(forResource: "shade_r2")
+}
+
+struct Card<Content: View>: View {
+    @Environment(\.theme) private var accent
+    let kicker: String
+    let title: String
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(kicker.uppercased()).font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
+                Text(title).font(.system(size: 13, weight: .semibold))
+            }
+            content
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.background.opacity(0.55)))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.primary.opacity(0.07)))
+    }
+}
+
+struct ValueSlider: View {
+    @Environment(\.theme) private var accent
+    let icon: String, label: String
+    @Binding var value: Double
+    var range: ClosedRange<Double> = 0...1
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
+                Text(label).font(.callout)
+                Spacer()
+                Text("\(Int(((value - range.lowerBound) / (range.upperBound - range.lowerBound) * 100).rounded()))%")
+                    .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            Slider(value: $value, in: range).tint(accent)
+        }
+    }
+}
+
+struct Row<C: View>: View {
+    @Environment(\.theme) private var accent
+    let icon: String, label: String
+    @ViewBuilder var control: C
+    var body: some View {
+        HStack {
+            Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
+            Text(label).font(.callout)
+            Spacer()
+            control
+        }
+    }
+}
+
+// MARK: - Controller drawing
+
+/// Image of a DualSense (Resources/controller.png, 1200x809) with the parts the app controls drawn on top.
+struct ControllerArt: View {
+    @Environment(\.theme) private var accent
+    let s: DSSettings
+    var testing = false
+    @State private var phase = 0.0
+    private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
+
+    private var lightColor: Color {
+        switch s.lightEffect {
+        case .game: return Color(red: 0.2, green: 0.35, blue: 1)
+        case .fixed: return Color(red: s.red, green: s.green, blue: s.blue)
+        case .rainbow: return Color(hue: phase, saturation: 1, brightness: 1)
+        }
+    }
+    private var glow: Double { [1.0, 0.65, 0.35][s.brightness.rawValue] }
+
+    var body: some View {
+        GeometryReader { g in
+            let k = g.size.width / 1200   // image pixels to points
+            ZStack(alignment: .topLeading) {
+                if let img = PhotoMasks.photo {
+                    Image(nsImage: img).resizable().interpolation(.high)
+                        .frame(width: g.size.width, height: 809 * k)
+                        .shadow(color: .black.opacity(0.35), radius: 18, y: 12)
+                }
+                // triggers and lightbar: the photo's own pixels, recoloured
+                if s.left.mode != .off { tinted(PhotoMasks.leftTrigger, k: k) }
+                if s.right.mode != .off { tinted(PhotoMasks.rightTrigger, k: k) }
+                masked(PhotoMasks.lightbar, lightColor, glow: glow, k: k)
+                // player LEDs under the touchpad
+                HStack(spacing: 9 * k) {
+                    ForEach(0..<5) { i in
+                        Capsule().fill(playerOn(i) ? Color.white : .clear)
+                            .shadow(color: playerOn(i) ? .white : .clear, radius: 4 * k)
+                            .frame(width: 14 * k, height: 5 * k)
+                    }
+                }.position(x: 597 * k, y: 289 * k)
+                if testing { TesterOverlay(k: k, accent: accent) }
+                // mute LED
+                Capsule().fill(micColor).frame(width: 52 * k, height: 11 * k)
+                    .shadow(color: micColor == .clear ? .clear : .orange, radius: 6 * k)
+                    .position(x: 601 * k, y: 469 * k)
+            }
+        }
+        .frame(width: 440, height: 297)
+        .padding(.vertical, 14)
+        .onReceive(timer) { _ in phase = (phase + 0.005).truncatingRemainder(dividingBy: 1) }
+    }
+
+    /// An altered trigger shows white; light grey when the chosen colour is itself white.
+    private var triggerColor: Color {
+        let white = s.lightEffect == .fixed && min(s.red, s.green, s.blue) > 0.85
+        return white ? Color(white: 0.7) : .white
+    }
+
+    /// Recolours a part: its grey shading multiplied by the theme colour, so the relief stays.
+    private func tinted(_ shade: NSImage?, k: CGFloat) -> some View {
+        Group {
+            if let shade {
+                Image(nsImage: shade).resizable().interpolation(.high)
+                    .frame(width: 1200 * k, height: 809 * k)
+                    .colorMultiply(triggerColor)
+            }
+        }
+    }
+
+    private func masked(_ mask: NSImage?, _ color: Color, glow: Double, k: CGFloat) -> some View {
+        Group {
+            if let mask {
+                Rectangle().fill(color)
+                    .frame(width: 1200 * k, height: 809 * k)
+                    .mask(Image(nsImage: mask).resizable().interpolation(.high))
+                    .shadow(color: color.opacity(glow * 0.7), radius: 5 * k)
+                    .shadow(color: color.opacity(glow * 0.35), radius: 14 * k)
+            }
+        }
+    }
+
+    private var micColor: Color {
+        switch s.micLED {
+        case .on: return .orange
+        case .pulse: return .orange.opacity(abs(sin(phase * 60)))
+        default: return .clear
+        }
+    }
+    private func playerOn(_ i: Int) -> Bool {
+        let masks = [0x00, 0x04, 0x0A, 0x15, 0x1B, 0x1F]
+        guard s.playerLEDs >= 0 else { return i == 2 }
+        return masks[min(5, s.playerLEDs)] & (1 << i) != 0
+    }
+}
+
+// MARK: - Cards
+
+struct TriggerCard: View {
+    @Environment(\.theme) private var accent
+    let title: String
+    @Binding var t: TriggerSetting
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Row(icon: title == "L2" ? "l2.rectangle.roundedtop" : "r2.rectangle.roundedtop", label: title) {
+                Picker("", selection: $t.mode) {
+                    ForEach(TriggerMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }.labelsHidden().frame(width: 190)
+            }
+            if t.mode != .off {
+                ValueSlider(icon: "arrow.down.to.line", label: "Início", value: $t.start, range: 0...0.9)
+                ValueSlider(icon: "bolt.fill", label: "Força", value: $t.strength, range: 0.05...1)
+            }
+        }
+    }
+}
+
+struct StatusCard: View {
+    @ObservedObject var st = StatusModel.shared
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Circle().fill(st.connected ? .green : .gray).frame(width: 8, height: 8)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(st.connected ? st.name : "Nenhum DualSense conectado").font(.system(size: 13, weight: .semibold))
+                    if let b = st.battery {
+                        Text("Bateria \(b)%" + (st.charging ? " · carregando" : "")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if let b = st.battery {
+                ProgressView(value: Double(b), total: 100).tint(b <= 20 ? .red : .green)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.background.opacity(0.55)))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.primary.opacity(0.07)))
+    }
+}
+
+struct FirmwareCard: View {
+    @Environment(\.theme) private var accent
+    @ObservedObject var m: FirmwareModel
+    @State private var confirm = false
+    var body: some View {
+        Card(kicker: "Firmware", title: "Atualização pelo cabo USB") {
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
+                GridRow { Text("Atual").foregroundStyle(.secondary); Text(m.current ?? "—").monospaced() }
+                GridRow { Text("Disponível").foregroundStyle(.secondary); Text(m.latest ?? "—").monospaced() }
+            }.font(.callout)
+            Group {
+                switch m.phase {
+                case .idle: Text("Conecte o controle com um cabo de dados e verifique.").foregroundStyle(.secondary)
+                case .busy(let s): HStack { ProgressView().controlSize(.small); Text(s) }
+                case .ready: Text(m.updateAvailable ? "Atualização disponível." : "Firmware atualizado.")
+                        .foregroundStyle(m.updateAvailable ? .orange : .green)
+                case .updating:
+                    ProgressView(value: m.progress) { Text("Gravando… não desconecte o cabo.") }
+                case .done(let s): Text(s).foregroundStyle(.green)
+                case .failed(let s): Text(s).foregroundStyle(.red).lineLimit(3).textSelection(.enabled)
+                }
+            }.font(.caption)
+            HStack {
+                Button("Verificar") { Task { await m.check() } }
+                    .disabled(m.phase == .updating || FirmwareModel.tool == nil)
+                Spacer()
+                Button("Instalar") { confirm = true }
+                    .buttonStyle(.borderedProminent).tint(accent)
+                    .disabled(!(m.phase == .ready && m.updateAvailable))
+            }
+        }
+        .confirmationDialog("Instalar o firmware \(m.latest ?? "")?", isPresented: $confirm) {
+            Button("Instalar") { Task { await m.install() } }
+        } message: {
+            Text("Mantenha o cabo conectado e o Mac ligado até o fim. Interromper a gravação pode deixar o controle inutilizável.")
+        }
+    }
+}
+
+// MARK: - Window content
+
+struct SettingsView: View {
+    @State private var testing = false
+    private var accent: Color {
+        switch m.s.lightEffect {
+        case .fixed: return Color(red: m.s.red, green: m.s.green, blue: m.s.blue)
+        default: return defaultAccent
+        }
+    }
+    @ObservedObject var m: SettingsModel
+    @ObservedObject var fw: FirmwareModel
+
+    private var color: Binding<Color> {
+        Binding(get: { Color(red: m.s.red, green: m.s.green, blue: m.s.blue) },
+                set: { c in
+                    let n = NSColor(c).usingColorSpace(.deviceRGB) ?? .white
+                    m.s.red = Double(n.redComponent); m.s.green = Double(n.greenComponent); m.s.blue = Double(n.blueComponent)
+                })
+    }
+    private func volumeOn(_ k: WritableKeyPath<DSSettings, Double>) -> Binding<Bool> {
+        Binding(get: { m.s[keyPath: k] >= 0 }, set: { m.s[keyPath: k] = $0 ? 0.5 : -1 })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            header
+            HStack(alignment: .top, spacing: 18) {
+                VStack(spacing: 14) { lightsCard; micCard }.frame(width: 300)
+                VStack(spacing: 14) { centre; triggersCard }
+                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard }.frame(width: 300)
+            }
+        }
+        .padding(.horizontal, 26).padding(.top, 34).padding(.bottom, 24)
+        .frame(width: 1180, height: 800, alignment: .top)
+        .environment(\.theme, accent)
+        .tint(accent)
+        .background(
+            LinearGradient(colors: [Color(nsColor: .windowBackgroundColor), Color(nsColor: .underPageBackgroundColor)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(LinearGradient(colors: [accent, Color(red: 0.05, green: 0.2, blue: 0.7)], startPoint: .top, endPoint: .bottom))
+                .frame(width: 44, height: 44)
+                .overlay(Image(systemName: "gamecontroller.fill").foregroundStyle(.white).font(.system(size: 20)))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("DualSense").font(.system(size: 22, weight: .bold))
+                Text("Luzes, gatilhos, vibração e firmware no Mac").font(.callout).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Restaurar padrão") { m.s = DSSettings() }
+        }
+    }
+
+    private var centre: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("VISÃO GERAL").font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
+                Text("Seu controle agora").font(.system(size: 13, weight: .semibold))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .trailing) {
+                Toggle("Testar controle", isOn: $testing).toggleStyle(.switch).controlSize(.small)
+            }
+            ControllerArt(s: m.s, testing: testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil).frame(maxWidth: .infinity)
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                Text(testing ? "Aperte os botões, mexa os analógicos e toque no touchpad." : "As mudanças valem na hora, inclusive dentro dos jogos.")
+            }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.background.opacity(0.55)))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.primary.opacity(0.07)))
+    }
+
+    private var lightsCard: some View {
+        Card(kicker: "Luzes", title: "Barra de luz e jogador") {
+            Row(icon: "light.max", label: "Barra de luz") {
+                Picker("", selection: $m.s.lightEffect) {
+                    Text("Do jogo").tag(LightEffect.game)
+                    Text("Cor fixa").tag(LightEffect.fixed)
+                    Text("Arco-íris").tag(LightEffect.rainbow)
+                }.labelsHidden().frame(width: 120)
+            }
+            if m.s.lightEffect == .fixed {
+                Row(icon: "paintpalette", label: "Cor") { ColorPicker("", selection: color, supportsOpacity: false).labelsHidden() }
+                HStack(spacing: 8) {
+                    ForEach(Array([(0.16, 0.42, 1.0), (1.0, 0.2, 0.25), (0.3, 1.0, 0.35), (1.0, 0.75, 0.1), (0.75, 0.3, 1.0), (1.0, 1.0, 1.0)].enumerated()), id: \.offset) { _, c in
+                        Circle().fill(Color(red: c.0, green: c.1, blue: c.2)).frame(width: 22, height: 22)
+                            .overlay(Circle().strokeBorder(.primary.opacity(0.15)))
+                            .onTapGesture { m.s.red = c.0; m.s.green = c.1; m.s.blue = c.2 }
+                    }
+                }.padding(.leading, 24)
+            }
+            Divider()
+            Row(icon: "person.fill", label: "Luz do jogador") {
+                Picker("", selection: $m.s.playerLEDs) {
+                    Text("Do jogo").tag(-1); Text("Desligada").tag(0)
+                    ForEach(1...4, id: \.self) { Text("\($0)").tag($0) }
+                    Text("Todas").tag(5)
+                }.labelsHidden().frame(width: 120)
+            }
+            Row(icon: "sun.max", label: "Brilho") {
+                Picker("", selection: $m.s.brightness) {
+                    Text("Alto").tag(Brightness.high); Text("Médio").tag(Brightness.medium); Text("Baixo").tag(Brightness.low)
+                }.labelsHidden().pickerStyle(.segmented).fixedSize()
+            }
+        }
+    }
+
+    private var micCard: some View {
+        Card(kicker: "Microfone", title: "Luz de status") {
+            Row(icon: "mic.fill", label: "Luz do microfone") {
+                Picker("", selection: $m.s.micLED) {
+                    Text("Padrão").tag(MicLED.game); Text("Desligada").tag(MicLED.off)
+                    Text("Ligada").tag(MicLED.on); Text("Piscando").tag(MicLED.pulse)
+                }.labelsHidden().frame(width: 120)
+            }
+        }
+    }
+
+    private var triggersCard: some View {
+        Card(kicker: "Gatilhos adaptativos e vibração", title: "Sinta a resistência") {
+            HStack(alignment: .top, spacing: 18) {
+                TriggerCard(title: "L2", t: $m.s.left)
+                Divider()
+                TriggerCard(title: "R2", t: $m.s.right)
+            }
+            Divider()
+            HStack(alignment: .bottom, spacing: 18) {
+                ValueSlider(icon: "waveform.path", label: "Vibração forte", value: $m.s.rumbleStrong)
+                ValueSlider(icon: "waveform", label: "Vibração suave", value: $m.s.rumbleSoft)
+                Button { m.s.rumbleStrong = 0; m.s.rumbleSoft = 0 } label: { Image(systemName: "stop.fill") }
+                    .help("Parar vibração")
+            }
+        }
+    }
+
+    private var audioCard: some View {
+        Card(kicker: "Áudio", title: "Alto-falante e fone do controle") {
+            Toggle(isOn: volumeOn(\.speakerVolume)) { Label("Volume do alto-falante", systemImage: "speaker.wave.2") }
+                .toggleStyle(.switch).tint(accent)
+            if m.s.speakerVolume >= 0 { Slider(value: $m.s.speakerVolume, in: 0...1).tint(accent) }
+            Toggle(isOn: volumeOn(\.headphoneVolume)) { Label("Volume do fone", systemImage: "headphones") }
+                .toggleStyle(.switch).tint(accent)
+            if m.s.headphoneVolume >= 0 { Slider(value: $m.s.headphoneVolume, in: 0...1).tint(accent) }
+        }
+    }
+}
+
+@MainActor final class SettingsWindow: NSObject, NSWindowDelegate {
+    private var window: NSWindow?
+    let model: SettingsModel
+    let firmware: FirmwareModel
+    init(_ o: DualSenseOutput) { model = SettingsModel(o); firmware = FirmwareModel(o) }
+
+    func show() {
+        if window == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(m: model, fw: firmware)))
+            w.title = "DualSense"
+            w.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            w.titleVisibility = .hidden
+            w.titlebarAppearsTransparent = true
+            w.isMovableByWindowBackground = true
+            w.isReleasedWhenClosed = false
+            w.delegate = self
+            w.center()
+            window = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool { firmware.phase != .updating }   // never close mid-flash
+}
