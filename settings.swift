@@ -320,11 +320,17 @@ struct SettingsView: View {
 
     var body: some View {
         // scrolls when the window is smaller than the layout (small screens, resized window)
-        ScrollView([.vertical, .horizontal]) {
-            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+        GeometryReader { g in
+            ScrollView([.vertical, .horizontal]) {
+                // centred when the window is larger than the layout (maximised), scrolls when smaller
+                content.frame(minWidth: g.size.width, minHeight: g.size.height)
+            }
         }
         .frame(minWidth: 640, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(
+            LinearGradient(colors: [Color(nsColor: .windowBackgroundColor), Color(nsColor: .underPageBackgroundColor)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
     }
 
     private var content: some View {
@@ -341,10 +347,6 @@ struct SettingsView: View {
         .environment(\.theme, accent)
         .tint(accent)
         .id(language)
-        .background(
-            LinearGradient(colors: [Color(nsColor: .windowBackgroundColor), Color(nsColor: .underPageBackgroundColor)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
     }
 
     private var header: some View {
@@ -486,11 +488,18 @@ struct SettingsView: View {
             w.center()
             window = w
         }
+        // a regular app while the window is open: own menu bar ("DualDeck") and Dock icon
+        NSApp.setActivationPolicy(.regular)
+        AppMenu.install()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool { firmware.phase != .updating }   // never close mid-flash
+
+    func windowWillClose(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)   // back to a menu bar app
+    }
 }
 
 
@@ -628,4 +637,39 @@ struct UpdateRow: View {
             }
         }
     }
+}
+
+
+/// The menu bar shown while the settings window is open.
+@MainActor enum AppMenu {
+    static func install() {
+        guard NSApp.mainMenu?.items.first?.submenu?.title != "DualDeck" else { return }
+        let main = NSMenu()
+        let app = NSMenu(title: "DualDeck")
+        app.addItem(withTitle: L("Apoiar") + "…", action: #selector(AppMenuTarget.donate), keyEquivalent: "").target = AppMenuTarget.shared
+        app.addItem(withTitle: L("Verificar atualizações"), action: #selector(AppMenuTarget.update), keyEquivalent: "").target = AppMenuTarget.shared
+        app.addItem(.separator())
+        app.addItem(withTitle: L("Ocultar DualDeck"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        app.addItem(.separator())
+        app.addItem(withTitle: L("Sair do DualDeck"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let appItem = NSMenuItem(); appItem.submenu = app; main.addItem(appItem)
+        let edit = NSMenu(title: L("Editar"))
+        edit.addItem(withTitle: L("Copiar"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: L("Colar"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L("Selecionar tudo"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let editItem = NSMenuItem(); editItem.submenu = edit; main.addItem(editItem)
+        let win = NSMenu(title: L("Janela"))
+        win.addItem(withTitle: L("Minimizar"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        win.addItem(withTitle: L("Zoom"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        win.addItem(withTitle: L("Fechar"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        let winItem = NSMenuItem(); winItem.submenu = win; main.addItem(winItem)
+        NSApp.mainMenu = main
+        NSApp.windowsMenu = win
+    }
+}
+
+@MainActor final class AppMenuTarget: NSObject {
+    static let shared = AppMenuTarget()
+    @objc func donate() { DonateWindow.show() }
+    @objc func update() { Task { await Updater.shared.check() } }
 }

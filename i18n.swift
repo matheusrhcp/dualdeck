@@ -143,6 +143,16 @@ private let english: [String: String] = [
     // popover
     "Abrir configurações": "Open settings",
     "Resistência L2 e R2": "L2 and R2 resistance",
+    // app menu
+    "Ocultar DualDeck": "Hide DualDeck",
+    "Sair do DualDeck": "Quit DualDeck",
+    "Editar": "Edit",
+    "Colar": "Paste",
+    "Selecionar tudo": "Select All",
+    "Janela": "Window",
+    "Minimizar": "Minimize",
+    "Zoom": "Zoom",
+    "Fechar": "Close",
     // donate
     "Apoiar": "Support",
     "Apoie o DualDeck": "Support DualDeck",
