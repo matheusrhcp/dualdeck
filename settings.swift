@@ -19,7 +19,7 @@ final class StatusModel: ObservableObject {
 
 // MARK: - Building blocks
 
-private let defaultAccent = Color(red: 0.16, green: 0.42, blue: 1.0)
+private let defaultAccent = Color(red: 0, green: 0.4, blue: 1.0)   // DualDeck Electric Blue #0066FF
 
 private struct ThemeKey: EnvironmentKey { static let defaultValue = defaultAccent }
 extension EnvironmentValues {
@@ -313,13 +313,10 @@ struct SettingsView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(LinearGradient(colors: [accent, Color(red: 0.05, green: 0.2, blue: 0.7)], startPoint: .top, endPoint: .bottom))
-                .frame(width: 44, height: 44)
-                .overlay(Image(systemName: "gamecontroller.fill").foregroundStyle(.white).font(.system(size: 20)))
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 1) {
-                Text("DualSense").font(.system(size: 22, weight: .bold))
-                Text("Luzes, gatilhos, vibração e firmware no Mac").font(.callout).foregroundStyle(.secondary)
+                Text("DualDeck").font(.system(size: 22, weight: .bold))
+                Text("Seu DualSense no Mac: luzes, gatilhos, testes e firmware").font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             Button("Restaurar padrão") { m.s = DSSettings() }
@@ -361,7 +358,7 @@ struct SettingsView: View {
             if m.s.lightEffect == .fixed {
                 Row(icon: "paintpalette", label: "Cor") { ColorPicker("", selection: color, supportsOpacity: false).labelsHidden() }
                 HStack(spacing: 8) {
-                    ForEach(Array([(0.16, 0.42, 1.0), (1.0, 0.2, 0.25), (0.3, 1.0, 0.35), (1.0, 0.75, 0.1), (0.75, 0.3, 1.0), (1.0, 1.0, 1.0)].enumerated()), id: \.offset) { _, c in
+                    ForEach(Array([(0, 0.4, 1.0), (1.0, 0.2, 0.25), (0.3, 1.0, 0.35), (1.0, 0.75, 0.1), (0.75, 0.3, 1.0), (1.0, 1.0, 1.0)].enumerated()), id: \.offset) { _, c in
                         Circle().fill(Color(red: c.0, green: c.1, blue: c.2)).frame(width: 22, height: 22)
                             .overlay(Circle().strokeBorder(.primary.opacity(0.15)))
                             .onTapGesture { m.s.red = c.0; m.s.green = c.1; m.s.blue = c.2 }
@@ -433,7 +430,7 @@ struct SettingsView: View {
     func show() {
         if window == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(m: model, fw: firmware)))
-            w.title = "DualSense"
+            w.title = "DualDeck"
             w.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
             w.titleVisibility = .hidden
             w.titlebarAppearsTransparent = true

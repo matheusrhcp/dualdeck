@@ -9,10 +9,10 @@ struct PopoverView: View {
     let quit: () -> Void
 
     private var accent: Color {
-        m.s.lightEffect == .fixed ? Color(red: m.s.red, green: m.s.green, blue: m.s.blue) : Color(red: 0.16, green: 0.42, blue: 1.0)
+        m.s.lightEffect == .fixed ? Color(red: m.s.red, green: m.s.green, blue: m.s.blue) : Color(red: 0, green: 0.4, blue: 1.0)
     }
     private static let swatches: [(Double, Double, Double)] = [
-        (0.16, 0.42, 1.0), (1.0, 0.2, 0.25), (0.3, 1.0, 0.35), (1.0, 0.75, 0.1), (0.75, 0.3, 1.0), (1.0, 1.0, 1.0),
+        (0, 0.4, 1.0), (1.0, 0.2, 0.25), (0.3, 1.0, 0.35), (1.0, 0.75, 0.1), (0.75, 0.3, 1.0), (1.0, 1.0, 1.0),
     ]
 
     var body: some View {
@@ -35,7 +35,7 @@ struct PopoverView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text("DualSense").font(.system(size: 20, weight: .bold))
+                    Text("DualDeck").font(.system(size: 20, weight: .bold))
                     Circle().fill(st.connected ? .green : .gray).frame(width: 8, height: 8)
                 }
                 Text(st.connected ? st.name : "Nenhum controle conectado")
