@@ -348,6 +348,8 @@ struct SettingsView: View {
             Spacer()
             PadPicker(m: m)
             Spacer()
+            Button { DonateWindow.show() } label: { Label(L("Apoiar"), systemImage: "heart.fill") }
+                .tint(.pink)
             Button(L("Restaurar padrão")) { m.s = DSSettings() }
         }
     }

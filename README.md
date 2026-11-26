@@ -33,6 +33,15 @@ Requires macOS 15 (Sequoia) or later on an Apple Silicon Mac.
 ./make_dmg.sh       # makes dist/DualDeck-<version>.dmg
 ```
 
+## Support
+
+DualDeck is free and open source. If it helped you, consider a donation:
+
+- **PayPal**: [donate](https://www.paypal.com/donate/?business=matheusmore%40gmail.com&no_recurring=0&item_name=DualDeck) (matheusmore@gmail.com)
+- **Pix** (Brazil): `matheusmore@gmail.com`
+
+The app also has a **Support** button with both options.
+
 ## Credits and licences
 
 - DualDeck code: MIT licence (`LICENSE`).
@@ -76,6 +85,15 @@ Requer macOS 15 (Sequoia) ou posterior e Mac com Apple Silicon.
 ./build.sh          # compila, instala em ~/Applications/DualDeck.app e reinicia
 ./make_dmg.sh       # gera dist/DualDeck-<versão>.dmg
 ```
+
+### Apoie
+
+O DualDeck é gratuito e open source. Se ele te ajudou, considere uma doação:
+
+- **Pix**: `matheusmore@gmail.com`
+- **PayPal**: [doar](https://www.paypal.com/donate/?business=matheusmore%40gmail.com&no_recurring=0&item_name=DualDeck) (matheusmore@gmail.com)
+
+O app também tem um botão **Apoiar** com as duas opções.
 
 ### Créditos e licenças
 

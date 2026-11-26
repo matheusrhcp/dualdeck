@@ -143,4 +143,12 @@ private let english: [String: String] = [
     // popover
     "Abrir configurações": "Open settings",
     "Resistência L2 e R2": "L2 and R2 resistance",
+    // donate
+    "Apoiar": "Support",
+    "Apoie o DualDeck": "Support DualDeck",
+    "O DualDeck é gratuito e open source. Se ele te ajudou, considere uma doação.": "DualDeck is free and open source. If it helped you, consider a donation.",
+    "Chave Pix": "Pix key (Brazil)",
+    "Copiar": "Copy",
+    "Copiado!": "Copied!",
+    "Doar com PayPal": "Donate with PayPal",
 ]

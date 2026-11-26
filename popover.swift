@@ -177,7 +177,8 @@ struct PopoverView: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             Spacer()
-            Button(L("Restaurar")) { m.s = DSSettings() }.buttonStyle(.borderless).font(.caption)
+            Button { DonateWindow.show() } label: { Image(systemName: "heart.fill") }
+                .buttonStyle(.borderless).foregroundStyle(.pink).help(L("Apoiar"))
         }
         .padding(.top, 4)
     }
