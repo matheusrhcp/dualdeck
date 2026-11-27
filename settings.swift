@@ -161,7 +161,8 @@ struct ControllerArt: View {
                     .position(x: 601 * k, y: 469 * k)
             }
         }
-        .frame(width: 440, height: 297)
+        .aspectRatio(1200 / 809, contentMode: .fit)
+        .frame(minWidth: 440, maxWidth: 820)
         .padding(.vertical, 14)
         .onReceive(timer) { _ in phase = (phase + 0.005).truncatingRemainder(dividingBy: 1) }
     }
@@ -337,13 +338,13 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             HStack(alignment: .top, spacing: 18) {
-                VStack(spacing: 14) { lightsCard; micCard; ProfilesCard() }.frame(width: 300)
-                VStack(spacing: 14) { centre; triggersCard }
-                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard; SystemCard() }.frame(width: 300)
+                VStack(spacing: 14) { lightsCard; micCard; ProfilesCard() }.frame(minWidth: 300, maxWidth: 380)
+                VStack(spacing: 14) { centre; triggersCard }.frame(maxWidth: .infinity)
+                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard; SystemCard() }.frame(minWidth: 300, maxWidth: 380)
             }
         }
         .padding(.horizontal, 26).padding(.top, 34).padding(.bottom, 24)
-        .frame(width: 1180, height: 940, alignment: .top)
+        .frame(minWidth: 1180, maxWidth: .infinity, minHeight: 940, maxHeight: .infinity, alignment: .top)
         .environment(\.theme, accent)
         .tint(accent)
         .id(language)
