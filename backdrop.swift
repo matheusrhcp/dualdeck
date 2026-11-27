@@ -20,13 +20,18 @@ struct AppBackdrop: View {
     let style: BackdropStyle
     let accent: Color
     var body: some View {
-        switch style {
-        case .aurora: Aurora(accent: accent)
-        case .glow: Glow(accent: accent)
-        case .glass:
+        // the desktop behind, always blurred (never readable), then the style on top:
+        // Transparency 0 = the style fully opaque, 100 = mostly the blurred desktop
+        ZStack {
             VisualEffect()
-                .overlay(Color.black.opacity((1 - transparency) * 0.75))   // less transparency = darker, more solid
-                .overlay(accent.opacity(0.06))
+            Group {
+                switch style {
+                case .aurora: ZStack { navy; Aurora(accent: accent) }
+                case .glow: Glow(accent: accent)
+                case .glass: ZStack { Color.black.opacity(0.55); accent.opacity(0.08) }
+                }
+            }
+            .opacity(1 - transparency * (style == .glass ? 0.9 : 0.75))
         }
     }
 }
