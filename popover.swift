@@ -74,10 +74,13 @@ struct PopoverView: View {
     }
 
     private var batteryTile: some View {
-        tile("battery.75percent", L("Bateria")) {
+        tile("bolt.batteryblock", L("Bateria")) {
             if let b = st.battery {
-                Text("\(b)%").font(.system(size: 22, weight: .bold)).foregroundStyle(b <= 20 ? .red : .primary)
-                Text(st.charging ? L("Carregando") : L("Em uso")).font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text("\(b)%").font(.system(size: 22, weight: .bold)).foregroundStyle(b <= 20 ? .red : .primary)
+                    BatteryGlyph(level: b, charging: st.charging, height: 14)
+                }
+                Text(st.stateText).font(.caption).foregroundStyle(.secondary)
             } else {
                 Text("—").font(.system(size: 22, weight: .bold))
                 Text(L("Desconectado")).font(.caption).foregroundStyle(.secondary)

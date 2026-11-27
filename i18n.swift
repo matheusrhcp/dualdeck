@@ -159,6 +159,12 @@ private let english: [String: String] = [
     "Aurora": "Aurora",
     "Brilho suave": "Glow",
     "Transparência": "Transparency",
+    "Carga completa": "Fully charged",
+    "Notificações bloqueadas": "Notifications blocked",
+    "Notificações": "Notifications",
+    "Ativar": "Turn on",
+    "Testar": "Test",
+    "As notificações estão funcionando.": "Notifications are working.",
     "Vidro": "Glass",
     // app menu
     "Ocultar DualDeck": "Hide DualDeck",

@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 // Main window: a dashboard of cards around a live drawing of the controller.
 
@@ -42,6 +43,36 @@ final class StatusModel: ObservableObject {
     @Published var name = "DualSense"
     @Published var battery: Int?
     @Published var charging = false
+    @Published var full = false
+    var stateText: String { full ? L("Carga completa") : charging ? L("Carregando") : L("Em uso") }
+}
+
+/// Battery drawn to its level: green / yellow / red, a bolt while charging.
+struct BatteryGlyph: View {
+    let level: Int?
+    var charging = false
+    var height: CGFloat = 13
+    var body: some View {
+        let f = Double(level ?? 0) / 100
+        let color: Color = level == nil ? .secondary : f <= 0.2 ? .red : f <= 0.4 ? .yellow : .green
+        HStack(spacing: 1.5) {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: height * 0.28).strokeBorder(.primary.opacity(0.55), lineWidth: 1.2)
+                GeometryReader { g in
+                    RoundedRectangle(cornerRadius: height * 0.18).fill(color)
+                        .frame(width: max(0, (g.size.width - 4) * f))
+                        .padding(2)
+                }
+                if charging {
+                    Image(systemName: "bolt.fill").font(.system(size: height * 0.7, weight: .bold))
+                        .foregroundStyle(.white).shadow(radius: 1)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(width: height * 2, height: height)
+            RoundedRectangle(cornerRadius: 1).fill(.primary.opacity(0.55)).frame(width: 2, height: height * 0.4)
+        }
+    }
 }
 
 // MARK: - Building blocks
@@ -286,7 +317,7 @@ struct StatusCard: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(st.connected ? st.name : L("Nenhum DualSense conectado")).font(.system(size: 13, weight: .semibold))
                     if let b = st.battery {
-                        Text(L("Bateria") + " \(b)%" + (st.charging ? " · " + L("carregando") : "")).font(.caption).foregroundStyle(.secondary)
+                        Text(L("Bateria") + " \(b)% · " + st.stateText.lowercased()).font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -653,6 +684,7 @@ struct SystemCard: View {
                     Text("English").tag(AppLanguage.en.rawValue)
                 }.labelsHidden().frame(width: 120)
             }
+            NotificationRow()
             Divider()
             FirmwareRow(m: fw)
             Divider()
@@ -755,4 +787,41 @@ struct UpdateRow: View {
     static let shared = AppMenuTarget()
     @objc func donate() { DonateWindow.show() }
     @objc func update() { Task { await Updater.shared.check() } }
+}
+
+
+/// Warns when macOS blocks DualDeck's notifications (charge complete, low battery) and opens the settings.
+struct NotificationRow: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
+    @State private var blocked = false
+    var body: some View {
+        let _ = language
+        Group {
+            if blocked {
+                HStack {
+                    Image(systemName: "bell.slash").foregroundStyle(.orange).frame(width: 16)
+                    Text(L("Notificações bloqueadas")).font(.callout)
+                    Spacer()
+                    Button(L("Ativar")) {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
+                    }
+                }
+            } else {
+                HStack {
+                    Image(systemName: "bell").foregroundStyle(.secondary).frame(width: 16)
+                    Text(L("Notificações")).font(.callout)
+                    Spacer()
+                    Button(L("Testar")) { App.testNotification() }
+                }
+            }
+        }
+        .task { await refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await refresh() }
+        }
+    }
+    private func refresh() async {
+        let st = await UNUserNotificationCenter.current().notificationSettings()
+        blocked = st.authorizationStatus == .denied
+    }
 }

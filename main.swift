@@ -27,6 +27,11 @@ let warnLevels: [Float] = [0.20, 0.10]
         nc.addObserver(self, selector: #selector(refresh), name: .GCControllerDidConnect, object: nil)
         nc.addObserver(self, selector: #selector(refresh), name: .GCControllerDidDisconnect, object: nil)
         nc.addObserver(self, selector: #selector(chargeComplete), name: .dualDeckChargeComplete, object: nil)
+        if ProcessInfo.processInfo.environment["DUALDECK_DEBUG"] != nil {
+            UNUserNotificationCenter.current().getNotificationSettings { st in
+                FileHandle.standardError.write(Data("notifications: auth \(st.authorizationStatus.rawValue) alert \(st.alertSetting.rawValue)\n".utf8))
+            }
+        }
         GCController.startWirelessControllerDiscovery(completionHandler: nil)
         Timer.scheduledTimer(timeInterval: 15, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
         refresh()
@@ -62,7 +67,7 @@ let warnLevels: [Float] = [0.20, 0.10]
         st.name = c.vendorName ?? "DualSense"
         output.publish()
         if let pad = output.selectedPad, let b = output.level(pad) {   // the same reading as the window and the popover
-            st.battery = b; st.charging = pad.charging
+            st.battery = b; st.charging = pad.charging; st.full = pad.full
             item.button?.title = pad.charging ? " \(b)% ⚡︎" : " \(b)%"
             info.title = "DualSense: \(b)%"
             if !pad.charging {
@@ -105,6 +110,15 @@ let warnLevels: [Float] = [0.20, 0.10]
         c.body = String(format: L("Restam %d%%. Conecte o carregador."), pct)
         c.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "low-\(pct)", content: c, trigger: nil))
+    }
+
+    /// A sample notification, from the System card.
+    static func testNotification() {
+        let c = UNMutableNotificationContent()
+        c.title = "DualDeck"
+        c.body = L("As notificações estão funcionando.")
+        c.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "test-\(Date().timeIntervalSince1970)", content: c, trigger: nil))
     }
 
     @objc func chargeComplete() {

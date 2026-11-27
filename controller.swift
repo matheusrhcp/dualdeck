@@ -165,6 +165,9 @@ final class DualSenseOutput {
 
     /// Input report 0x01 (USB) or 0x31 (Bluetooth): sticks, triggers, buttons, touchpad, battery.
     private func parse(_ pad: Pad, id: UInt32, _ r: [UInt8]) {
+        if ProcessInfo.processInfo.environment["DUALDECK_DEBUG"] != nil, pad.lastReport == .distantPast {
+            FileHandle.standardError.write(Data("report id \(id) len \(r.count) first \(r.first ?? 0)\n".utf8))
+        }
         let o: Int
         if id == 0x01 && r.count >= 54 && r.first == 0x01 { o = 1 }
         else if id == 0x01 && r.count >= 53 { o = 0 }
@@ -191,6 +194,9 @@ final class DualSenseOutput {
             s.touches.append(CGPoint(x: Double(x) / 960 - 1, y: 1 - Double(y) / 540))
         }
         pad.state = s
+        if ProcessInfo.processInfo.environment["DUALDECK_DEBUG"] != nil, pad.lastReport == .distantPast {
+            FileHandle.standardError.write(Data("first report id \(id) len \(r.count) status \(String(r[o + 52], radix: 16))\n".utf8))
+        }
         pad.lastReport = Date()
         let st = r[o + 52]
         let level = min(100, Int(st & 0x0F) * 10 + 5), charging = (st >> 4) == 1, full = (st >> 4) == 2
@@ -198,8 +204,9 @@ final class DualSenseOutput {
         if full && !pad.full && pad.battery != nil {
             NotificationCenter.default.post(name: .dualDeckChargeComplete, object: nil)
         }
+        let fullChanged = full != pad.full
         pad.full = full
-        if level != pad.battery || charging != pad.charging {
+        if level != pad.battery || charging != pad.charging || fullChanged {
             pad.battery = level; pad.charging = charging
             publish()
         }
@@ -222,7 +229,7 @@ final class DualSenseOutput {
         let sel = selectedPad?.serial
         if m.selected != sel { m.selected = sel }
         if let p = selectedPad, let b = level(p) {
-            StatusModel.shared.battery = b; StatusModel.shared.charging = p.charging
+            StatusModel.shared.battery = b; StatusModel.shared.charging = p.charging; StatusModel.shared.full = p.full
         }
     }
 
