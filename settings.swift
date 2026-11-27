@@ -346,8 +346,8 @@ struct FirmwareRow: View {
 
 struct SettingsView: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
-    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
-    @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.aurora.rawValue
+    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.0
+    @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.glow.rawValue
     @State private var testing = false
     private var accent: Color {
         switch m.s.lightEffect {
@@ -379,7 +379,7 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 1100, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
-        .background(AppBackdrop(style: BackdropStyle(rawValue: backdrop) ?? .aurora, accent: accent).ignoresSafeArea())
+        .background(AppBackdrop(style: BackdropStyle(rawValue: backdrop) ?? .glow, accent: accent).ignoresSafeArea())
         .environment(\.colorScheme, AppBackdrop.isLight(transparency) ? .light : .dark)
     }
 
@@ -615,8 +615,8 @@ struct ProfilesCard: View {
 
 struct SystemCard: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
-    @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.aurora.rawValue
-    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
+    @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.glow.rawValue
+    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.0
     @Environment(\.theme) private var accent
     @ObservedObject var power = PowerManager.shared
     let fw: FirmwareModel

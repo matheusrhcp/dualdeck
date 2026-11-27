@@ -16,7 +16,7 @@ private let navy = Color(red: 0.055, green: 0.094, blue: 0.165)     // DualDeck 
 private let violet = Color(red: 0.54, green: 0.17, blue: 0.89)      // DualDeck Violet Glow #8A2BE2
 
 struct AppBackdrop: View {
-    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
+    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.0
     let style: BackdropStyle
     let accent: Color
     /// light appearance once the background is light, so text stays readable
@@ -115,7 +115,7 @@ private struct VisualEffect: NSViewRepresentable {
 
 /// Frosted card background used everywhere.
 struct CardBackground: View {
-    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
+    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.0
     var radius: CGFloat = 18
     var body: some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
