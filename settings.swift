@@ -162,7 +162,7 @@ struct ControllerArt: View {
             }
         }
         .aspectRatio(1200 / 809, contentMode: .fit)
-        .frame(minWidth: 440, maxWidth: 820)
+        .frame(minWidth: 320, maxWidth: 820)
         .padding(.vertical, 14)
         .onReceive(timer) { _ in phase = (phase + 0.005).truncatingRemainder(dividingBy: 1) }
     }
@@ -221,7 +221,7 @@ struct TriggerCard: View {
             Row(icon: title == "L2" ? "l2.rectangle.roundedtop" : "r2.rectangle.roundedtop", label: title) {
                 Picker("", selection: $t.mode) {
                     ForEach(TriggerMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                }.labelsHidden().frame(width: 190)
+                }.labelsHidden().frame(maxWidth: 190)
             }
             if t.mode != .off {
                 ValueSlider(icon: "arrow.down.to.line", label: L("Início"), value: $t.start, range: 0...0.9)
@@ -322,12 +322,12 @@ struct SettingsView: View {
     var body: some View {
         // scrolls when the window is smaller than the layout (small screens, resized window)
         GeometryReader { g in
-            ScrollView([.vertical, .horizontal]) {
-                // centred when the window is larger than the layout (maximised), scrolls when smaller
-                content.frame(minWidth: g.size.width, minHeight: g.size.height)
+            ScrollView(.vertical) {
+                // exactly the window's width (columns stretch or shrink), at least its height; scrolls when shorter
+                content.frame(width: g.size.width).frame(minHeight: max(940, g.size.height), alignment: .top)
             }
         }
-        .frame(minWidth: 640, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
+        .frame(minWidth: 1100, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
         .background(
             LinearGradient(colors: [Color(nsColor: .windowBackgroundColor), Color(nsColor: .underPageBackgroundColor)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -338,13 +338,13 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             HStack(alignment: .top, spacing: 18) {
-                VStack(spacing: 14) { lightsCard; micCard; ProfilesCard() }.frame(minWidth: 300, maxWidth: 380)
+                VStack(spacing: 14) { lightsCard; micCard; ProfilesCard() }.frame(minWidth: 230, maxWidth: 380)
                 VStack(spacing: 14) { centre; triggersCard }.frame(maxWidth: .infinity)
-                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard; SystemCard() }.frame(minWidth: 300, maxWidth: 380)
+                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard; SystemCard() }.frame(minWidth: 230, maxWidth: 380)
             }
         }
         .padding(.horizontal, 26).padding(.top, 34).padding(.bottom, 24)
-        .frame(minWidth: 1180, maxWidth: .infinity, minHeight: 940, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.theme, accent)
         .tint(accent)
         .id(language)
@@ -477,7 +477,7 @@ struct SettingsView: View {
             let w = NSWindow(contentViewController: host)
             w.title = "DualDeck"
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-            w.contentMinSize = NSSize(width: 640, height: 480)
+            w.contentMinSize = NSSize(width: 1100, height: 480)
             // the full layout when it fits, else the visible screen minus a margin; centred
             let screen = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
             w.setContentSize(NSSize(width: min(1180, screen.width - 40), height: min(940, screen.height - 40)))
