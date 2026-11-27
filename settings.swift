@@ -76,8 +76,7 @@ struct Card<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.background.opacity(0.55)))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.primary.opacity(0.07)))
+        .background(CardBackground())
     }
 }
 
@@ -297,8 +296,7 @@ struct StatusCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.background.opacity(0.55)))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.primary.opacity(0.07)))
+        .background(CardBackground())
     }
 }
 
@@ -348,6 +346,7 @@ struct FirmwareRow: View {
 
 struct SettingsView: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
+    @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.aurora.rawValue
     @State private var testing = false
     private var accent: Color {
         switch m.s.lightEffect {
@@ -379,10 +378,8 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 1100, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
-        .background(
-            LinearGradient(colors: [Color(nsColor: .windowBackgroundColor), Color(nsColor: .underPageBackgroundColor)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
+        .background(AppBackdrop(style: BackdropStyle(rawValue: backdrop) ?? .aurora, accent: accent).ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
     }
 
     private var content: some View {
@@ -449,8 +446,7 @@ struct SettingsView: View {
             }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.background.opacity(0.55)))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.primary.opacity(0.07)))
+        .background(CardBackground())
     }
 
     private var lightsCard: some View {
@@ -547,6 +543,8 @@ struct SettingsView: View {
             let screen = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
             w.setContentSize(NSSize(width: min(1180, screen.width - 40), height: min(940, screen.height - 40)))
             w.titleVisibility = .hidden
+            w.isOpaque = false
+            w.backgroundColor = .clear
             w.titlebarAppearsTransparent = true
             w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
@@ -616,6 +614,8 @@ struct ProfilesCard: View {
 
 struct SystemCard: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
+    @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.aurora.rawValue
+    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
     @Environment(\.theme) private var accent
     @ObservedObject var power = PowerManager.shared
     let fw: FirmwareModel
@@ -639,6 +639,12 @@ struct SystemCard: View {
                 }
                 if let note { Text(note).font(.caption).foregroundStyle(.secondary) }
             }
+            Row(icon: "paintbrush", label: L("Fundo")) {
+                Picker("", selection: $backdrop) {
+                    ForEach(BackdropStyle.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }.labelsHidden().frame(width: 120).id(language)
+            }
+            ValueSlider(icon: "circle.lefthalf.filled", label: L("Transparência"), value: $transparency)
             Row(icon: "globe", label: L("Idioma")) {
                 Picker("", selection: $language) {
                     Text(L("Automático")).tag(AppLanguage.automatic.rawValue)

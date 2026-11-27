@@ -22,6 +22,7 @@ Your DualSense on the Mac: lights, adaptive triggers, tests and firmware, right 
 - **Power**: battery in the menu bar, low-battery alert, turn the controller off, and auto-off when idle.
 - **Several controllers**: each DualSense keeps its own settings.
 - **Updates**: the app checks for and installs new versions published in Releases.
+- **Looks**: Aurora, Glow or Glass background, following the light-bar colour, with adjustable glass transparency.
 
 ## Install
 
@@ -81,6 +82,7 @@ Seu DualSense no Mac: luzes, gatilhos adaptativos, testes e firmware, direto da 
 - **Energia**: bateria na barra de menus, aviso de bateria baixa, desligar o controle e desligamento automático quando parado.
 - **Vários controles**: cada DualSense com suas próprias configurações.
 - **Atualizações**: o app verifica e instala novas versões publicadas nas Releases.
+- **Visual**: fundo Aurora, Brilho suave ou Vidro, na cor da barra de luz, com transparência ajustável.
 
 ### Instalação
 

@@ -155,6 +155,11 @@ private let english: [String: String] = [
     "Fone": "Headphones",
     "No começo da barra, o jogo decide.": "At the start of the bar, the game decides.",
     "Pelo cabo USB de dados.": "Over a USB data cable.",
+    "Fundo": "Background",
+    "Aurora": "Aurora",
+    "Brilho suave": "Glow",
+    "Transparência": "Transparency",
+    "Vidro": "Glass",
     // app menu
     "Ocultar DualDeck": "Hide DualDeck",
     "Sair do DualDeck": "Quit DualDeck",
