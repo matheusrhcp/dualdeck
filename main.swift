@@ -20,7 +20,12 @@ let warnLevels: [Float] = [0.20, 0.10]
         item.button?.image = NSImage(systemSymbolName: "gamecontroller.fill", accessibilityDescription: "DualSense")
         item.button?.imagePosition = .imageLeading
         item.isVisible = UserDefaults.standard.bool(forKey: "alwaysShowIcon")
+        // only the "always show icon" choice matters here (any other setting change must not re-run refresh: it looped)
+        var lastAlways = UserDefaults.standard.bool(forKey: "alwaysShowIcon")
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            let now = UserDefaults.standard.bool(forKey: "alwaysShowIcon")
+            guard now != lastAlways else { return }
+            lastAlways = now
             MainActor.assumeIsolated { self?.refresh() }
         }
         GCController.shouldMonitorBackgroundEvents = true
@@ -64,15 +69,19 @@ let warnLevels: [Float] = [0.20, 0.10]
     }
 
     @objc func refresh() {
+        if ProcessInfo.processInfo.environment["DUALDECK_DEBUG"] != nil {
+            FileHandle.standardError.write(Data("refresh \(Date().timeIntervalSince1970) controllers \(GCController.controllers().filter(isDualSense).count)\n".utf8))
+        }
         let st = StatusModel.shared
         guard let c = GCController.controllers().first(where: isDualSense) else {
             st.connected = false; st.battery = nil
             item.button?.title = ""
             info.title = L("Nenhum DualSense conectado")
-            item.isVisible = UserDefaults.standard.bool(forKey: "alwaysShowIcon")   // hidden without a controller, unless chosen
+            let show = UserDefaults.standard.bool(forKey: "alwaysShowIcon")   // hidden without a controller, unless chosen
+            if item.isVisible != show { item.isVisible = show }
             return
         }
-        item.isVisible = true
+        if !item.isVisible { item.isVisible = true }
         st.connected = true
         st.name = c.vendorName ?? "DualSense"
         output.publish()
