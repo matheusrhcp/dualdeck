@@ -19,20 +19,24 @@ struct AppBackdrop: View {
     @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
     let style: BackdropStyle
     let accent: Color
+    /// light appearance once the frosted white dominates, so text stays readable
+    static func isLight(_ t: Double) -> Bool { t > 0.6 }
     var body: some View {
-        // the desktop behind, always blurred (never readable), the style, and black on top at low transparency
+        let t = transparency
+        // black (0 %) → the chosen style, toned down (50 %) → frosted white glass (100 %)
         ZStack {
-            VisualEffect()
+            VisualEffect(light: true)
+            Color.white.opacity(0.18 + 0.22 * t)
             Group {
                 switch style {
                 case .aurora: ZStack { navy; Aurora(accent: accent) }
                 case .glow: Glow(accent: accent)
-                case .glass: ZStack { Color.black.opacity(0.55); accent.opacity(0.08) }
+                case .glass: Color(white: 0.16)
                 }
             }
-            // 0…50 %: from solid black (like the logo) to the full style; 50…100 %: the blurred desktop shows through
-            .opacity(1 - max(0, transparency - 0.5) * (style == .glass ? 1.8 : 1.5))
-            Color.black.opacity(max(0, 1 - transparency * 2))
+            .saturation(0.35)                                   // no pink cast from the violet/accent mix
+            .opacity(1 - max(0, t - 0.5) * 2)                   // fades out above 50 %
+            Color.black.opacity(max(0, 1 - t * 2))              // solid black at 0 %
         }
     }
 }
@@ -78,9 +82,11 @@ private struct Glow: View {
 
 /// The desktop behind the window, blurred.
 private struct VisualEffect: NSViewRepresentable {
+    var light = false
     func makeNSView(context: Context) -> NSVisualEffectView {
         let v = NSVisualEffectView()
-        v.material = .underWindowBackground
+        if light { v.appearance = NSAppearance(named: .aqua) }
+        v.material = light ? .fullScreenUI : .underWindowBackground
         v.blendingMode = .behindWindow
         v.state = .active
         return v
@@ -96,7 +102,8 @@ struct CardBackground: View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(.ultraThinMaterial)
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(Color(white: 0.12).opacity((1 - transparency) * 0.9)))   // 0 = solid card, 1 = clear glass
+                .fill((AppBackdrop.isLight(transparency) ? Color.white : Color(white: 0.12))
+                    .opacity(AppBackdrop.isLight(transparency) ? 0.35 : 0.9 - transparency * 0.8)))
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(.white.opacity(0.09)))
             .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
     }

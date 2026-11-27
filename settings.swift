@@ -346,6 +346,7 @@ struct FirmwareRow: View {
 
 struct SettingsView: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
+    @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.5
     @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.aurora.rawValue
     @State private var testing = false
     private var accent: Color {
@@ -379,7 +380,7 @@ struct SettingsView: View {
         }
         .frame(minWidth: 1100, idealWidth: 1180, maxWidth: .infinity, minHeight: 480, idealHeight: 940, maxHeight: .infinity)
         .background(AppBackdrop(style: BackdropStyle(rawValue: backdrop) ?? .aurora, accent: accent).ignoresSafeArea())
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, AppBackdrop.isLight(transparency) ? .light : .dark)
     }
 
     private var content: some View {
