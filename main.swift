@@ -19,7 +19,10 @@ let warnLevels: [Float] = [0.20, 0.10]
         item.button?.action = #selector(togglePopover)
         item.button?.image = NSImage(systemSymbolName: "gamecontroller.fill", accessibilityDescription: "DualSense")
         item.button?.imagePosition = .imageLeading
-        item.isVisible = true
+        item.isVisible = UserDefaults.standard.bool(forKey: "alwaysShowIcon")
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
         GCController.shouldMonitorBackgroundEvents = true
         UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -48,6 +51,12 @@ let warnLevels: [Float] = [0.20, 0.10]
     func applicationWillTerminate(_ n: Notification) { output.release() }
 
     @objc func openSettings() { settingsWindow.show() }
+
+    /// Opening the app again (Finder, Launchpad, Spotlight) shows the settings, also with no controller connected.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        settingsWindow.show()
+        return true
+    }
     @objc func togglePopover() { if let b = item.button { popover.toggle(from: b) } }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -60,6 +69,7 @@ let warnLevels: [Float] = [0.20, 0.10]
             st.connected = false; st.battery = nil
             item.button?.title = ""
             info.title = L("Nenhum DualSense conectado")
+            item.isVisible = UserDefaults.standard.bool(forKey: "alwaysShowIcon")   // hidden without a controller, unless chosen
             return
         }
         item.isVisible = true

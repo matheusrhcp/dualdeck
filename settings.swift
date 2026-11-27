@@ -648,6 +648,7 @@ struct SystemCard: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @AppStorage(BackdropStyle.key) private var backdrop = BackdropStyle.glow.rawValue
     @AppStorage(BackdropStyle.transparencyKey) private var transparency = 0.0
+    @AppStorage("alwaysShowIcon") private var alwaysShowIcon = false
     @Environment(\.theme) private var accent
     @ObservedObject var power = PowerManager.shared
     let fw: FirmwareModel
@@ -671,6 +672,9 @@ struct SystemCard: View {
                 }
                 if let note { Text(note).font(.caption).foregroundStyle(.secondary) }
             }
+            Toggle(isOn: $alwaysShowIcon) {
+                Label(L("Ícone sempre visível"), systemImage: "menubar.rectangle")
+            }.toggleStyle(.switch)
             Row(icon: "paintbrush", label: L("Fundo")) {
                 Picker("", selection: $backdrop) {
                     ForEach(BackdropStyle.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }

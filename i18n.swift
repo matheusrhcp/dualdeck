@@ -160,6 +160,7 @@ private let english: [String: String] = [
     "Brilho suave": "Glow",
     "Transparência": "Transparency",
     "Carga completa": "Fully charged",
+    "Ícone sempre visível": "Always show icon",
     "Notificações bloqueadas": "Notifications blocked",
     "Notificações": "Notifications",
     "Ativar": "Turn on",
