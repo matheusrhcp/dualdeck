@@ -59,6 +59,7 @@ enum ButtonArt {
 }
 
 struct TesterOverlay: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     let k: CGFloat
     let accent: Color
 

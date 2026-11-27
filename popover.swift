@@ -32,7 +32,6 @@ struct PopoverView: View {
             LinearGradient(colors: [accent.opacity(0.35), Color(white: 0.08).opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing)
         )
         .tint(accent)
-        .id(language)
     }
 
     private var header: some View {
@@ -214,6 +213,7 @@ struct PopoverView: View {
 
 /// Shown in the popover only when a new version is out.
 struct UpdateBanner: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var u = Updater.shared
     var body: some View {
         if case .available(let v) = u.phase {

@@ -18,6 +18,7 @@ final class SettingsModel: ObservableObject {
 
 /// "Controle 1 · 65%" picker, shown when more than one DualSense is connected.
 struct PadPicker: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var pads = PadsModel.shared
     let m: SettingsModel
     var body: some View {
@@ -61,6 +62,7 @@ enum PhotoMasks {
 }
 
 struct Card<Content: View>: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     let kicker: String
     let title: String
@@ -81,6 +83,7 @@ struct Card<Content: View>: View {
 }
 
 struct ValueSlider: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     let icon: String, label: String
     @Binding var value: Double
@@ -100,6 +103,7 @@ struct ValueSlider: View {
 }
 
 struct Row<C: View>: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     let icon: String, label: String
     @ViewBuilder var control: C
@@ -117,6 +121,7 @@ struct Row<C: View>: View {
 
 /// Image of a DualSense (Resources/controller.png, 1200x809) with the parts the app controls drawn on top.
 struct ControllerArt: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     let s: DSSettings
     var testing = false
@@ -213,6 +218,7 @@ struct ControllerArt: View {
 // MARK: - Cards
 
 struct TriggerCard: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     let title: String
     @Binding var t: TriggerSetting
@@ -232,6 +238,7 @@ struct TriggerCard: View {
 }
 
 struct StatusCard: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var st = StatusModel.shared
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -256,6 +263,7 @@ struct StatusCard: View {
 }
 
 struct FirmwareCard: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     @ObservedObject var m: FirmwareModel
     @State private var confirm = false
@@ -347,7 +355,6 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.theme, accent)
         .tint(accent)
-        .id(language)
     }
 
     private var header: some View {
@@ -507,6 +514,7 @@ struct SettingsView: View {
 // MARK: - Game profiles, system
 
 struct ProfilesCard: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     @ObservedObject var g = GameProfiles.shared
     private let levels: [(String, Double)] = [(L("Off"), 0), (L("Leve"), 0.3), (L("Médio"), 0.6), (L("Forte"), 1)]
@@ -585,6 +593,7 @@ struct SystemCard: View {
 
 /// Stick drift check: each stick's position at rest against the dead zone.
 struct DriftView: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     private let deadZone = 0.08
 
@@ -615,6 +624,7 @@ struct DriftView: View {
 
 
 struct UpdateRow: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var u = Updater.shared
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {

@@ -8,6 +8,7 @@ enum Donate {
 }
 
 struct DonateView: View {
+    @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     @State private var copied = false
     var body: some View {
