@@ -425,15 +425,23 @@ struct SettingsView: View {
             .overlay(alignment: .trailing) {
                 Toggle(L("Testar controle"), isOn: $testing).toggleStyle(.switch).controlSize(.small)
             }
-            ControllerArt(s: m.s, testing: testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil).frame(maxWidth: .infinity)
+            ControllerArt(s: m.s, testing: testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil)
+                .fixedSize(horizontal: false, vertical: true)   // height follows width: never squeezed by the tester rows
+                .layoutPriority(1)
+                .frame(maxWidth: .infinity)
             if testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil {
-                DriftView().frame(maxWidth: .infinity).padding(.bottom, 10)
-                HStack(alignment: .bottom, spacing: 18) {
-                    ValueSlider(icon: "waveform.path", label: L("Vibração forte"), value: $m.s.rumbleStrong)
-                    ValueSlider(icon: "waveform", label: L("Vibração suave"), value: $m.s.rumbleSoft)
-                    Button { m.s.rumbleStrong = 0; m.s.rumbleSoft = 0 } label: { Image(systemName: "stop.fill") }
-                        .help(L("Parar vibração"))
-                }.padding(.bottom, 10)
+                HStack(alignment: .center, spacing: 24) {
+                    DriftView()
+                    VStack(alignment: .leading, spacing: 10) {
+                        ValueSlider(icon: "waveform.path", label: L("Vibração forte"), value: $m.s.rumbleStrong)
+                        ValueSlider(icon: "waveform", label: L("Vibração suave"), value: $m.s.rumbleSoft)
+                        Button { m.s.rumbleStrong = 0; m.s.rumbleSoft = 0 } label: {
+                            Label(L("Parar vibração"), systemImage: "stop.fill")
+                        }.controlSize(.small)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
             }
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
