@@ -20,8 +20,7 @@ struct AppBackdrop: View {
     let style: BackdropStyle
     let accent: Color
     var body: some View {
-        // the desktop behind, always blurred (never readable), then the style on top:
-        // Transparency 0 = the style fully opaque, 100 = mostly the blurred desktop
+        // the desktop behind, always blurred (never readable), the style, and black on top at low transparency
         ZStack {
             VisualEffect()
             Group {
@@ -31,7 +30,9 @@ struct AppBackdrop: View {
                 case .glass: ZStack { Color.black.opacity(0.55); accent.opacity(0.08) }
                 }
             }
-            .opacity(1 - transparency * (style == .glass ? 0.9 : 0.75))
+            // 0…50 %: from solid black (like the logo) to the full style; 50…100 %: the blurred desktop shows through
+            .opacity(1 - max(0, transparency - 0.5) * (style == .glass ? 1.8 : 1.5))
+            Color.black.opacity(max(0, 1 - transparency * 2))
         }
     }
 }
