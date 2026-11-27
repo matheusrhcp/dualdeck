@@ -26,6 +26,7 @@ let warnLevels: [Float] = [0.20, 0.10]
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(refresh), name: .GCControllerDidConnect, object: nil)
         nc.addObserver(self, selector: #selector(refresh), name: .GCControllerDidDisconnect, object: nil)
+        nc.addObserver(self, selector: #selector(chargeComplete), name: .dualDeckChargeComplete, object: nil)
         GCController.startWirelessControllerDiscovery(completionHandler: nil)
         Timer.scheduledTimer(timeInterval: 30, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
         refresh()
@@ -103,6 +104,14 @@ let warnLevels: [Float] = [0.20, 0.10]
         c.body = String(format: L("Restam %d%%. Conecte o carregador."), pct)
         c.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "low-\(pct)", content: c, trigger: nil))
+    }
+
+    @objc func chargeComplete() {
+        let c = UNMutableNotificationContent()
+        c.title = L("DualSense carregado")
+        c.body = L("A bateria está cheia: pode desconectar do carregador.")
+        c.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "full-\(Date().timeIntervalSince1970)", content: c, trigger: nil))
     }
 
     func log(_ s: String) { FileHandle.standardError.write(Data((s + "\n").utf8)) }

@@ -75,12 +75,15 @@ final class Pad {
     var state = InputSnapshot()
     var battery: Int?
     var charging = false
+    var full = false
     var lastReport = Date.distantPast
     var lastSent: DSSettings?
     let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 128)
     init(dev: IOHIDDevice, serial: String, bluetooth: Bool) { self.dev = dev; self.serial = serial; self.bluetooth = bluetooth }
     deinit { buffer.deallocate() }
 }
+
+extension Notification.Name { static let dualDeckChargeComplete = Notification.Name("DualDeckChargeComplete") }
 
 /// The list the selector shows.
 final class PadsModel: ObservableObject {
@@ -189,7 +192,12 @@ final class DualSenseOutput {
         pad.state = s
         pad.lastReport = Date()
         let st = r[o + 52]
-        let level = min(100, Int(st & 0x0F) * 10 + 5), charging = (st >> 4) == 1
+        let level = min(100, Int(st & 0x0F) * 10 + 5), charging = (st >> 4) == 1, full = (st >> 4) == 2
+        // charge complete (status "full" while on the charger): tell once per charge
+        if full && !pad.full && pad.battery != nil {
+            NotificationCenter.default.post(name: .dualDeckChargeComplete, object: nil)
+        }
+        pad.full = full
         if level != pad.battery || charging != pad.charging {
             pad.battery = level; pad.charging = charging
             publish()

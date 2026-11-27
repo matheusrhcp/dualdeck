@@ -86,6 +86,8 @@ private let english: [String: String] = [
     "estado desconhecido": "unknown state",
     "DualSense: bateria indisponível": "DualSense: battery unavailable",
     "DualSense com bateria baixa": "DualSense battery low",
+    "DualSense carregado": "DualSense charged",
+    "A bateria está cheia: pode desconectar do carregador.": "The battery is full: you can unplug the charger.",
     "Restam %d%%. Conecte o carregador.": "%d%% left. Plug in the charger.",
     // firmware
     "Atualização pelo cabo USB": "Update over USB cable",
