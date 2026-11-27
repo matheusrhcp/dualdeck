@@ -23,20 +23,21 @@ struct AppBackdrop: View {
     static func isLight(_ t: Double) -> Bool { t > 0.6 }
     var body: some View {
         let t = transparency
-        // black (0 %) → the chosen style, toned down (50 %) → frosted white glass (100 %)
+        // 0…50 %: the style solid (Aurora starts from black); 50…100 %: frosted white glass
         ZStack {
             VisualEffect(light: true)
             Color.white.opacity(0.18 + 0.22 * t)
             Group {
                 switch style {
-                case .aurora: ZStack { navy; Aurora(accent: accent) }
+                case .aurora: ZStack { navy; Aurora(accent: accent) }.saturation(0.35)   // no pink cast
                 case .glow: Glow(accent: accent)
-                case .glass: Color(white: 0.16)
+                case .glass: ZStack { VisualEffect(); accent.opacity(0.06) }           // the real dark glass
                 }
             }
-            .saturation(0.35)                                   // no pink cast from the violet/accent mix
-            .opacity(1 - max(0, t - 0.5) * 2)                   // fades out above 50 %
-            Color.black.opacity(max(0, 1 - t * 2))              // solid black at 0 %
+            .opacity(1 - max(0, t - 0.5) * 2)                   // every style fades to frosted white above 50 %
+            if style == .aurora {
+                Color.black.opacity(max(0, 1 - t * 2))          // Aurora only: solid black at 0 %
+            }
         }
     }
 }
