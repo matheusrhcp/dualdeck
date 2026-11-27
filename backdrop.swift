@@ -25,13 +25,15 @@ struct AppBackdrop: View {
         let t = transparency, light = Self.isLight(t)
         switch style {
         case .aurora:
-            // black (0 %) → Aurora (50 %) → frosted white (100 %)
+            // grey (0 %) → Aurora (50 %) → frosted white (100 %)
             ZStack {
                 VisualEffect(light: true)
                 Color.white.opacity(0.18 + 0.22 * t)
                 ZStack { navy; Aurora(accent: accent) }.saturation(0.35)
                     .opacity(1 - max(0, t - 0.5) * 2)
-                Color.black.opacity(max(0, 1 - t * 2))
+                // 0 %: the original grey of the window (dark window background)
+                LinearGradient(colors: [Color(white: 0.17), Color(white: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .opacity(max(0, 1 - t * 2))
             }
         case .glow:
             // always the glow and the grid; transparency lightens the base and softens both
