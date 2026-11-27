@@ -17,6 +17,7 @@ struct PopoverView: View {
     ]
 
     var body: some View {
+        let _ = language
         VStack(spacing: 12) {
             header
             PadPicker(m: m)
@@ -216,6 +217,7 @@ struct UpdateBanner: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var u = Updater.shared
     var body: some View {
+        let _ = language
         if case .available(let v) = u.phase {
             HStack {
                 Image(systemName: "sparkles")

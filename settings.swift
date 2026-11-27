@@ -22,6 +22,7 @@ struct PadPicker: View {
     @ObservedObject var pads = PadsModel.shared
     let m: SettingsModel
     var body: some View {
+        let _ = language
         if pads.list.count > 1 {
             Picker("", selection: Binding(get: { pads.selected ?? pads.list.first?.id ?? "" }, set: { m.select($0) })) {
                 ForEach(pads.list) { p in
@@ -68,6 +69,7 @@ struct Card<Content: View>: View {
     let title: String
     @ViewBuilder var content: Content
     var body: some View {
+        let _ = language
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(kicker.uppercased()).font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
@@ -89,6 +91,7 @@ struct ValueSlider: View {
     @Binding var value: Double
     var range: ClosedRange<Double> = 0...1
     var body: some View {
+        let _ = language
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
@@ -108,6 +111,7 @@ struct Row<C: View>: View {
     let icon: String, label: String
     @ViewBuilder var control: C
     var body: some View {
+        let _ = language
         HStack {
             Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
             Text(label).font(.callout).lineLimit(1).fixedSize()
@@ -139,6 +143,7 @@ struct ControllerArt: View {
     private var glow: Double { [1.0, 0.65, 0.35][s.brightness.rawValue] }
 
     var body: some View {
+        let _ = language
         GeometryReader { g in
             let k = g.size.width / 1200   // image pixels to points
             ZStack(alignment: .topLeading) {
@@ -223,11 +228,13 @@ struct TriggerCard: View {
     let title: String
     @Binding var t: TriggerSetting
     var body: some View {
+        let _ = language
         VStack(alignment: .leading, spacing: 10) {
             Row(icon: title == "L2" ? "l2.rectangle.roundedtop" : "r2.rectangle.roundedtop", label: title) {
                 Picker("", selection: $t.mode) {
                     ForEach(TriggerMode.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.labelsHidden().frame(maxWidth: 190)
+                .id(language)   // the native pop-up keeps old item titles otherwise
             }
             if t.mode != .off {
                 ValueSlider(icon: "arrow.down.to.line", label: L("Início"), value: $t.start, range: 0...0.9)
@@ -241,6 +248,7 @@ struct StatusCard: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var st = StatusModel.shared
     var body: some View {
+        let _ = language
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Circle().fill(st.connected ? .green : .gray).frame(width: 8, height: 8)
@@ -268,6 +276,7 @@ struct FirmwareCard: View {
     @ObservedObject var m: FirmwareModel
     @State private var confirm = false
     var body: some View {
+        let _ = language
         Card(kicker: "Firmware", title: L("Atualização pelo cabo USB")) {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
                 GridRow { Text(L("Atual")).foregroundStyle(.secondary); Text(m.current ?? "—").monospaced() }
@@ -328,6 +337,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        let _ = language
         // scrolls when the window is smaller than the layout (small screens, resized window)
         GeometryReader { g in
             ScrollView(.vertical) {
@@ -529,6 +539,7 @@ struct ProfilesCard: View {
     }
 
     var body: some View {
+        let _ = language
         Card(kicker: L("Perfis por jogo"), title: L("Gatilhos automáticos")) {
             if g.list.isEmpty {
                 Text(L("Adicione um jogo: os gatilhos dele valem sempre que ele estiver na frente."))
@@ -563,6 +574,7 @@ struct SystemCard: View {
     @State private var note: String?
 
     var body: some View {
+        let _ = language
         Card(kicker: L("Sistema"), title: L("Energia e inicialização")) {
             Row(icon: "moon.zzz", label: L("Desligar se parado")) {
                 Picker("", selection: $power.idleMinutes) {
@@ -598,6 +610,7 @@ struct DriftView: View {
     private let deadZone = 0.08
 
     var body: some View {
+        let _ = language
         TimelineView(.animation) { _ in
             let s = InputSnapshot.read() ?? InputSnapshot()
             HStack(spacing: 28) { pad(L("Esquerdo"), s.left); pad(L("Direito"), s.right) }
@@ -627,6 +640,7 @@ struct UpdateRow: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @ObservedObject var u = Updater.shared
     var body: some View {
+        let _ = language
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label(L("Versão") + " \(u.current)", systemImage: "arrow.triangle.2.circlepath").font(.callout)

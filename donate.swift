@@ -12,6 +12,7 @@ struct DonateView: View {
     @Environment(\.theme) private var accent
     @State private var copied = false
     var body: some View {
+        let _ = language
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "heart.fill").foregroundStyle(.pink)

@@ -75,6 +75,7 @@ struct TesterOverlay: View {
                                 "options", "create", "ps", "l1", "r1", "touchpad"]
 
     var body: some View {
+        let _ = language
         TimelineView(.animation) { _ in
             let s = InputSnapshot.read() ?? Self.preview ?? InputSnapshot()
             ZStack(alignment: .topLeading) {
