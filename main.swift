@@ -28,7 +28,7 @@ let warnLevels: [Float] = [0.20, 0.10]
         nc.addObserver(self, selector: #selector(refresh), name: .GCControllerDidDisconnect, object: nil)
         nc.addObserver(self, selector: #selector(chargeComplete), name: .dualDeckChargeComplete, object: nil)
         GCController.startWirelessControllerDiscovery(completionHandler: nil)
-        Timer.scheduledTimer(timeInterval: 30, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
+        Timer.scheduledTimer(timeInterval: 15, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
         refresh()
         GameProfiles.shared.output = output
         GameProfiles.shared.apply()
@@ -60,7 +60,8 @@ let warnLevels: [Float] = [0.20, 0.10]
         item.isVisible = true
         st.connected = true
         st.name = c.vendorName ?? "DualSense"
-        if let pad = output.selectedPad, let b = pad.battery {   // the selected controller's own report
+        output.publish()
+        if let pad = output.selectedPad, let b = output.level(pad) {   // the same reading as the window and the popover
             st.battery = b; st.charging = pad.charging
             item.button?.title = pad.charging ? " \(b)% ⚡︎" : " \(b)%"
             info.title = "DualSense: \(b)%"

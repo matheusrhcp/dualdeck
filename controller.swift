@@ -1,5 +1,6 @@
 import AppKit
 import IOKit.hid
+import GameController
 
 // DualSense settings sent straight to the controller as HID output reports, independent of the game.
 // Only the parts the user chose to control have their "valid" flags set, so everything else
@@ -204,14 +205,23 @@ final class DualSenseOutput {
         }
     }
 
+    /// The battery level shown everywhere. With one DualSense, the macOS reading (1 % steps); with several,
+    /// each controller's own report (10 % steps), since macOS does not say which controller is which.
+    func level(_ pad: Pad?) -> Int? {
+        if pads.count == 1, let b = GCController.controllers().first(where: isDualSense)?.battery {
+            return Int((b.batteryLevel * 100).rounded())
+        }
+        return pad?.battery
+    }
+
     /// Selector list, and the selected controller's battery in the status model.
     func publish() {
         let m = PadsModel.shared
-        let list = pads.enumerated().map { PadsModel.Info(id: $1.serial, number: $0 + 1, bluetooth: $1.bluetooth, battery: $1.battery) }
+        let list = pads.enumerated().map { PadsModel.Info(id: $1.serial, number: $0 + 1, bluetooth: $1.bluetooth, battery: level($1)) }
         if m.list != list { m.list = list }
         let sel = selectedPad?.serial
         if m.selected != sel { m.selected = sel }
-        if let p = selectedPad, let b = p.battery {
+        if let p = selectedPad, let b = level(p) {
             StatusModel.shared.battery = b; StatusModel.shared.charging = p.charging
         }
     }
@@ -248,7 +258,7 @@ final class DualSenseOutput {
         var s = pad.map { bySerial[$0.serial] ?? template } ?? template
         if let p = profile { s.left = p.left; s.right = p.right }
         if s.lightEffect == .battery {
-            let c = batteryColor(pad?.battery ?? StatusModel.shared.battery)
+            let c = batteryColor(level(pad) ?? StatusModel.shared.battery)
             s.lightEffect = .fixed; s.red = c.0; s.green = c.1; s.blue = c.2
         }
         return s
