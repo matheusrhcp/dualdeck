@@ -71,10 +71,7 @@ struct Card<Content: View>: View {
     var body: some View {
         let _ = language
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(kicker.uppercased()).font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
-                Text(title).font(.system(size: 13, weight: .semibold))
-            }
+            Text(kicker).font(.system(size: 14, weight: .semibold))   // one neutral title; the colour is for active controls
             content
         }
         .padding(16)
@@ -94,7 +91,7 @@ struct ValueSlider: View {
         let _ = language
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
+                Image(systemName: icon).foregroundStyle(.secondary).frame(width: 16)
                 Text(label).font(.callout)
                 Spacer()
                 Text("\(Int(((value - range.lowerBound) / (range.upperBound - range.lowerBound) * 100).rounded()))%")
@@ -113,7 +110,7 @@ struct Row<C: View>: View {
     var body: some View {
         let _ = language
         HStack {
-            Image(systemName: icon).foregroundStyle(accent).frame(width: 16)
+            Image(systemName: icon).foregroundStyle(.secondary).frame(width: 16)
             Text(label).font(.callout).lineLimit(1).fixedSize()
             Spacer(minLength: 6)
             control
@@ -229,18 +226,53 @@ struct TriggerCard: View {
     @Binding var t: TriggerSetting
     var body: some View {
         let _ = language
-        VStack(alignment: .leading, spacing: 10) {
-            Row(icon: title == "L2" ? "l2.rectangle.roundedtop" : "r2.rectangle.roundedtop", label: title) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(title).font(.system(size: 15, weight: .bold))
+                Spacer()
                 Picker("", selection: $t.mode) {
                     ForEach(TriggerMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                }.labelsHidden().frame(maxWidth: 190)
+                }.labelsHidden().frame(maxWidth: 200)
                 .id(language)   // the native pop-up keeps old item titles otherwise
             }
+            TriggerDiagram(t: t, accent: accent)
             if t.mode != .off {
                 ValueSlider(icon: "arrow.down.to.line", label: L("Início"), value: $t.start, range: 0...0.9)
                 ValueSlider(icon: "bolt.fill", label: L("Força"), value: $t.strength, range: 0.05...1)
+            } else {
+                Text(L("Sem resistência: o gatilho fica como o jogo deixar.")).font(.caption).foregroundStyle(.secondary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+/// The trigger's travel, top to bottom: where the effect starts and how strong it is.
+struct TriggerDiagram: View {
+    let t: TriggerSetting
+    let accent: Color
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width, on = t.mode != .off
+            ZStack(alignment: .leading) {
+                Capsule().fill(.primary.opacity(0.08))
+                if on {
+                    Capsule().fill(accent.opacity(0.25 + 0.75 * t.strength))
+                        .frame(width: max(12, w * (1 - t.start)))
+                        .offset(x: w * t.start)
+                    Rectangle().fill(.primary).frame(width: 2, height: 22).offset(x: w * t.start - 1)
+                }
+            }
+            .frame(height: 14)
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: 26)
+        .overlay(alignment: .bottomLeading) {
+            HStack {
+                Text(L("solto")); Spacer(); Text(L("apertado"))
+            }.font(.system(size: 9)).foregroundStyle(.secondary).offset(y: 12)
+        }
+        .padding(.bottom, 10)
     }
 }
 
@@ -270,40 +302,41 @@ struct StatusCard: View {
     }
 }
 
-struct FirmwareCard: View {
+struct FirmwareRow: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     @ObservedObject var m: FirmwareModel
     @State private var confirm = false
     var body: some View {
         let _ = language
-        Card(kicker: "Firmware", title: L("Atualização pelo cabo USB")) {
-            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
-                GridRow { Text(L("Atual")).foregroundStyle(.secondary); Text(m.current ?? "—").monospaced() }
-                GridRow { Text(L("Disponível")).foregroundStyle(.secondary); Text(m.latest ?? "—").monospaced() }
-            }.font(.callout)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: "cpu").foregroundStyle(.secondary).frame(width: 16)
+                Text("Firmware").font(.callout)
+                if let c = m.current { Text(c).font(.system(.callout, design: .monospaced)).foregroundStyle(.secondary) }
+                Spacer()
+                if m.phase == .ready && m.updateAvailable {
+                    Button(L("Instalar") + " " + (m.latest ?? "")) { confirm = true }.buttonStyle(.borderedProminent)
+                } else if case .busy = m.phase {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button(L("Verificar")) { Task { await m.check() } }
+                        .disabled(m.phase == .updating || FirmwareModel.tool == nil)
+                }
+            }
             Group {
                 switch m.phase {
-                case .idle: Text(L("Conecte o controle com um cabo de dados e verifique.")).foregroundStyle(.secondary)
-                case .busy(let s): HStack { ProgressView().controlSize(.small); Text(s) }
-                case .ready: Text(m.updateAvailable ? "Atualização disponível." : L("Firmware atualizado."))
+                case .idle: Text(L("Pelo cabo USB de dados.")).foregroundStyle(.secondary)
+                case .busy(let s): Text(s).foregroundStyle(.secondary)
+                case .ready: Text(m.updateAvailable ? L("Atualização disponível.") : L("Firmware atualizado."))
                         .foregroundStyle(m.updateAvailable ? .orange : .green)
-                case .updating:
-                    ProgressView(value: m.progress) { Text(L("Gravando… não desconecte o cabo.")) }
+                case .updating: ProgressView(value: m.progress) { Text(L("Gravando… não desconecte o cabo.")) }
                 case .done(let s): Text(s).foregroundStyle(.green)
                 case .failed(let s): Text(s).foregroundStyle(.red).lineLimit(3).textSelection(.enabled)
                 }
-            }.font(.caption)
-            HStack {
-                Button(L("Verificar")) { Task { await m.check() } }
-                    .disabled(m.phase == .updating || FirmwareModel.tool == nil)
-                Spacer()
-                Button(L("Instalar")) { confirm = true }
-                    .buttonStyle(.borderedProminent).tint(accent)
-                    .disabled(!(m.phase == .ready && m.updateAvailable))
-            }
+            }.font(.caption).padding(.leading, 24)
         }
-        .confirmationDialog("Instalar o firmware \(m.latest ?? "")?", isPresented: $confirm) {
+        .confirmationDialog(L("Instalar") + " firmware \(m.latest ?? "")?", isPresented: $confirm) {
             Button(L("Instalar")) { Task { await m.install() } }
         } message: {
             Text(L("Mantenha o cabo conectado e o Mac ligado até o fim. Interromper a gravação pode deixar o controle inutilizável."))
@@ -356,9 +389,9 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             HStack(alignment: .top, spacing: 18) {
-                VStack(spacing: 14) { lightsCard; micCard; ProfilesCard() }.frame(minWidth: 230, maxWidth: 380)
+                VStack(spacing: 14) { lightsCard; ProfilesCard() }.frame(minWidth: 230, maxWidth: 380)
                 VStack(spacing: 14) { centre; triggersCard }.frame(maxWidth: .infinity)
-                VStack(spacing: 14) { StatusCard(); FirmwareCard(m: fw); audioCard; SystemCard() }.frame(minWidth: 230, maxWidth: 380)
+                VStack(spacing: 14) { StatusCard(); audioCard; SystemCard(fw: fw) }.frame(minWidth: 230, maxWidth: 380)
             }
         }
         .padding(.horizontal, 26).padding(.top, 34).padding(.bottom, 24)
@@ -368,36 +401,43 @@ struct SettingsView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Image(nsImage: Bundle.main.image(forResource: "AppIconImage") ?? NSImage()).resizable().frame(width: 48, height: 48)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("DualDeck").font(.system(size: 22, weight: .bold))
-                Text(L("Seu DualSense no Mac: luzes, gatilhos, testes e firmware")).font(.callout).foregroundStyle(.secondary)
+        VStack(spacing: 6) {
+            Image(nsImage: Bundle.main.image(forResource: "AppIconImage") ?? NSImage()).resizable()
+                .frame(width: 96, height: 96)
+                .shadow(color: accent.opacity(0.35), radius: 18, y: 6)
+            Text("DualDeck").font(.system(size: 30, weight: .bold))
+            Text(L("Seu DualSense no Mac: luzes, gatilhos, testes e firmware")).font(.callout).foregroundStyle(.secondary)
+            PadPicker(m: m).padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .topTrailing) {
+            HStack {
+                Button { DonateWindow.show() } label: { Label(L("Apoiar"), systemImage: "heart.fill") }.tint(.pink)
+                Button(L("Restaurar padrão")) { m.s = DSSettings() }
             }
-            Spacer()
-            PadPicker(m: m)
-            Spacer()
-            Button { DonateWindow.show() } label: { Label(L("Apoiar"), systemImage: "heart.fill") }
-                .tint(.pink)
-            Button(L("Restaurar padrão")) { m.s = DSSettings() }
         }
     }
 
     private var centre: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L("Visão geral").uppercased()).font(.system(size: 10.5, weight: .bold)).tracking(1.4).foregroundStyle(accent)
-                Text(L("Seu controle agora")).font(.system(size: 13, weight: .semibold))
-            }
+            Text(L("Seu controle agora")).font(.system(size: 14, weight: .semibold))
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .trailing) {
                 Toggle(L("Testar controle"), isOn: $testing).toggleStyle(.switch).controlSize(.small)
             }
             ControllerArt(s: m.s, testing: testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil).frame(maxWidth: .infinity)
-            if testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil { DriftView().frame(maxWidth: .infinity).padding(.bottom, 8) }
+            if testing || ProcessInfo.processInfo.environment["DS_TESTER_PREVIEW"] != nil {
+                DriftView().frame(maxWidth: .infinity).padding(.bottom, 10)
+                HStack(alignment: .bottom, spacing: 18) {
+                    ValueSlider(icon: "waveform.path", label: L("Vibração forte"), value: $m.s.rumbleStrong)
+                    ValueSlider(icon: "waveform", label: L("Vibração suave"), value: $m.s.rumbleSoft)
+                    Button { m.s.rumbleStrong = 0; m.s.rumbleSoft = 0 } label: { Image(systemName: "stop.fill") }
+                        .help(L("Parar vibração"))
+                }.padding(.bottom, 10)
+            }
             HStack(spacing: 6) {
                 Image(systemName: "info.circle")
-                Text(testing ? "Aperte os botões, mexa os analógicos e toque no touchpad." : L("As mudanças valem na hora, inclusive dentro dos jogos."))
+                Text(testing ? L("Aperte os botões, mexa os analógicos e toque no touchpad.") : L("As mudanças valem na hora, inclusive dentro dos jogos."))
             }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         }
         .padding(16)
@@ -406,7 +446,7 @@ struct SettingsView: View {
     }
 
     private var lightsCard: some View {
-        Card(kicker: L("Luzes"), title: L("Barra de luz e jogador")) {
+        Card(kicker: L("Luzes"), title: "") {
             Row(icon: "light.max", label: L("Barra de luz")) {
                 Picker("", selection: $m.s.lightEffect) {
                     Text(L("Do jogo")).tag(LightEffect.game)
@@ -438,11 +478,6 @@ struct SettingsView: View {
                     Text(L("Alto")).tag(Brightness.high); Text(L("Médio")).tag(Brightness.medium); Text(L("Baixo")).tag(Brightness.low)
                 }.labelsHidden().pickerStyle(.segmented).controlSize(.small).fixedSize()
             }
-        }
-    }
-
-    private var micCard: some View {
-        Card(kicker: L("Microfone"), title: L("Luz de status")) {
             Row(icon: "mic.fill", label: L("Luz do microfone")) {
                 Picker("", selection: $m.s.micLED) {
                     Text(L("Padrão")).tag(MicLED.game); Text(L("Desligada")).tag(MicLED.off)
@@ -453,30 +488,35 @@ struct SettingsView: View {
     }
 
     private var triggersCard: some View {
-        Card(kicker: L("Gatilhos adaptativos e vibração"), title: L("Sinta a resistência")) {
-            HStack(alignment: .top, spacing: 18) {
+        Card(kicker: L("Gatilhos adaptativos"), title: "") {
+            HStack(alignment: .top, spacing: 22) {
                 TriggerCard(title: "L2", t: $m.s.left)
                 Divider()
                 TriggerCard(title: "R2", t: $m.s.right)
             }
-            Divider()
-            HStack(alignment: .bottom, spacing: 18) {
-                ValueSlider(icon: "waveform.path", label: L("Vibração forte"), value: $m.s.rumbleStrong)
-                ValueSlider(icon: "waveform", label: L("Vibração suave"), value: $m.s.rumbleSoft)
-                Button { m.s.rumbleStrong = 0; m.s.rumbleSoft = 0 } label: { Image(systemName: "stop.fill") }
-                    .help(L("Parar vibração"))
+        }
+    }
+
+    /// Volume slider whose left end means "leave it to the game" (stored as -1).
+    private func volume(_ icon: String, _ label: String, _ k: WritableKeyPath<DSSettings, Double>) -> some View {
+        let v = Binding(get: { max(-0.1, m.s[keyPath: k]) }, set: { m.s[keyPath: k] = $0 < 0 ? -1 : $0 })
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: icon).foregroundStyle(.secondary).frame(width: 16)
+                Text(label).font(.callout)
+                Spacer()
+                Text(m.s[keyPath: k] < 0 ? L("Do jogo") : "\(Int(m.s[keyPath: k] * 100))%")
+                    .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
             }
+            Slider(value: v, in: -0.1...1)
         }
     }
 
     private var audioCard: some View {
-        Card(kicker: L("Áudio"), title: L("Alto-falante e fone do controle")) {
-            Toggle(isOn: volumeOn(\.speakerVolume)) { Label(L("Volume do alto-falante"), systemImage: "speaker.wave.2") }
-                .toggleStyle(.switch).tint(accent)
-            if m.s.speakerVolume >= 0 { Slider(value: $m.s.speakerVolume, in: 0...1).tint(accent) }
-            Toggle(isOn: volumeOn(\.headphoneVolume)) { Label(L("Volume do fone"), systemImage: "headphones") }
-                .toggleStyle(.switch).tint(accent)
-            if m.s.headphoneVolume >= 0 { Slider(value: $m.s.headphoneVolume, in: 0...1).tint(accent) }
+        Card(kicker: L("Áudio do controle"), title: "") {
+            volume("speaker.wave.2", L("Alto-falante"), \.speakerVolume)
+            volume("headphones", L("Fone"), \.headphoneVolume)
+            Text(L("No começo da barra, o jogo decide.")).font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -540,7 +580,7 @@ struct ProfilesCard: View {
 
     var body: some View {
         let _ = language
-        Card(kicker: L("Perfis por jogo"), title: L("Gatilhos automáticos")) {
+        Card(kicker: L("Perfis por jogo"), title: "") {
             if g.list.isEmpty {
                 Text(L("Adicione um jogo: os gatilhos dele valem sempre que ele estiver na frente."))
                     .font(.caption).foregroundStyle(.secondary)
@@ -570,12 +610,13 @@ struct SystemCard: View {
     @AppStorage(AppLanguage.key) private var language = AppLanguage.automatic.rawValue
     @Environment(\.theme) private var accent
     @ObservedObject var power = PowerManager.shared
+    let fw: FirmwareModel
     @State private var login = LoginItem.enabled
     @State private var note: String?
 
     var body: some View {
         let _ = language
-        Card(kicker: L("Sistema"), title: L("Energia e inicialização")) {
+        Card(kicker: L("Sistema"), title: "") {
             Row(icon: "moon.zzz", label: L("Desligar se parado")) {
                 Picker("", selection: $power.idleMinutes) {
                     Text(L("Nunca")).tag(0); Text("5 min").tag(5); Text("10 min").tag(10); Text("15 min").tag(15); Text("30 min").tag(30)
@@ -597,6 +638,8 @@ struct SystemCard: View {
                     Text("English").tag(AppLanguage.en.rawValue)
                 }.labelsHidden().frame(width: 120)
             }
+            Divider()
+            FirmwareRow(m: fw)
             Divider()
             UpdateRow()
         }

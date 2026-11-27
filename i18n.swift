@@ -143,6 +143,16 @@ private let english: [String: String] = [
     // popover
     "Abrir configurações": "Open settings",
     "Resistência L2 e R2": "L2 and R2 resistance",
+    // redesign
+    "Gatilhos adaptativos": "Adaptive triggers",
+    "Sem resistência: o gatilho fica como o jogo deixar.": "No resistance: the trigger stays as the game sets it.",
+    "solto": "released",
+    "apertado": "pressed",
+    "Áudio do controle": "Controller audio",
+    "Alto-falante": "Speaker",
+    "Fone": "Headphones",
+    "No começo da barra, o jogo decide.": "At the start of the bar, the game decides.",
+    "Pelo cabo USB de dados.": "Over a USB data cable.",
     // app menu
     "Ocultar DualDeck": "Hide DualDeck",
     "Sair do DualDeck": "Quit DualDeck",
