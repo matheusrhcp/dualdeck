@@ -688,7 +688,7 @@ struct DriftView: View {
             }.frame(width: 64, height: 64)
             Text(name).font(.caption2.bold())
             Text(String(format: "x %+.2f  y %+.2f", v.x, v.y)).font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
-            Text(drift ? "Possível drift" : "OK").font(.caption2).foregroundStyle(drift ? .orange : .green)
+            Text(drift ? L("Possível drift") : "OK").font(.caption2).foregroundStyle(drift ? .orange : .green)
         }
     }
 }

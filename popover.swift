@@ -77,7 +77,7 @@ struct PopoverView: View {
         tile("battery.75percent", L("Bateria")) {
             if let b = st.battery {
                 Text("\(b)%").font(.system(size: 22, weight: .bold)).foregroundStyle(b <= 20 ? .red : .primary)
-                Text(st.charging ? "Carregando" : L("Em uso")).font(.caption).foregroundStyle(.secondary)
+                Text(st.charging ? L("Carregando") : L("Em uso")).font(.caption).foregroundStyle(.secondary)
             } else {
                 Text("—").font(.system(size: 22, weight: .bold))
                 Text(L("Desconectado")).font(.caption).foregroundStyle(.secondary)

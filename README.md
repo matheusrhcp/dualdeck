@@ -7,9 +7,9 @@ Your DualSense on the Mac: lights, adaptive triggers, tests and firmware, right 
 <p align="center"><img src="Resources/AppIconImage.png" width="160" alt="DualDeck icon"></p>
 
 <p align="center">
-  <img src="docs/popover.png" width="300" alt="Menu bar panel">
+  <img src="docs/popover_en.png" width="300" alt="Menu bar panel">
   &nbsp;&nbsp;
-  <img src="docs/app.png" width="560" alt="Settings window">
+  <img src="docs/app_en.png" width="560" alt="Settings window">
 </p>
 
 ## Features
